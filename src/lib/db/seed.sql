@@ -32,27 +32,28 @@ INSERT INTO zones (id, name, center_lat, center_lng, radius_meters, congestion_l
 ('ZONE-AIRPT', 'Kempegowda Airport', 13.1986, 77.7066, 3000, 25, 60, 'highway')
 ON CONFLICT (id) DO NOTHING;
 
--- Initial vehicle fleet (mix of trucks, cars, vans)
-INSERT INTO vehicles (id, name, type, status, location_lat, location_lng, fuel, cargo_capacity, ai_personality, heading, speed) VALUES
--- Trucks (heavy cargo)
-('FLEET-001', 'Ashok Leyland Truck Alpha', 'truck', 'in-transit', 12.9716, 77.5946, 78, 15000, 'efficient', 45, 32),
-('FLEET-002', 'Tata Prima Beta', 'truck', 'in-transit', 12.8500, 77.6600, 65, 18000, 'cautious', 120, 28),
-('FLEET-003', 'Mahindra Blazo Gamma', 'truck', 'loading', 12.9698, 77.7499, 92, 16000, 'balanced', 0, 0),
-('FLEET-004', 'Eicher Pro Delta', 'truck', 'in-transit', 12.9172, 77.6229, 45, 12000, 'aggressive', 200, 38),
-('FLEET-005', 'BharatBenz Epsilon', 'truck', 'refueling', 13.0358, 77.5970, 12, 17000, 'efficient', 0, 0),
-('FLEET-006', 'Volvo FH16 Zeta', 'truck', 'in-transit', 12.9250, 77.5838, 88, 20000, 'balanced', 315, 42),
-
--- Vans (medium cargo)
-('VAN-101', 'Force Traveller V1', 'van', 'in-transit', 12.9279, 77.6271, 70, 3500, 'aggressive', 90, 45),
-('VAN-102', 'Mahindra Supro V2', 'van', 'loading', 12.9719, 77.6412, 85, 3000, 'balanced', 0, 0),
-('VAN-103', 'Tata Winger V3', 'van', 'in-transit', 12.9750, 77.6060, 55, 3200, 'cautious', 180, 38),
-('VAN-104', 'Maruti Eeco V4', 'van', 'in-transit', 13.0030, 77.5710, 92, 2800, 'efficient', 270, 52),
-
--- Cars (light cargo/courier)
-('CAR-201', 'Swift Dzire Express', 'car', 'in-transit', 12.9165, 77.6101, 68, 500, 'aggressive', 135, 58),
-('CAR-202', 'Honda City Courier', 'car', 'in-transit', 13.1986, 77.7066, 75, 480, 'balanced', 225, 62),
-('CAR-203', 'Hyundai Verna Quick', 'car', 'idle', 12.8456, 77.6603, 82, 520, 'cautious', 0, 0),
-('CAR-204', 'Toyota Etios Rush', 'car', 'in-transit', 12.9698, 77.7499, 48, 490, 'aggressive', 60, 65)
+-- Initial vehicle fleet (10 vehicles between high-traffic areas for demo)
+INSERT INTO vehicles (id, name, type, status, location_lat, location_lng, destination_lat, destination_lng, fuel, cargo_capacity, ai_personality, heading, speed) VALUES
+-- Route: Koramangala (High) → Whitefield (High)
+('DEMO-001', 'Koramangala Express', 'truck', 'in-transit', 12.9279, 77.6271, 12.9698, 77.7499, 85, 15000, 'efficient', 75, 28),
+-- Route: Whitefield (High) → Hebbal (High)
+('DEMO-002', 'Whitefield Hauler', 'truck', 'in-transit', 12.9698, 77.7499, 13.0358, 77.5970, 72, 18000, 'balanced', 320, 32),
+-- Route: M.G. Road (High) → Indiranagar (High)
+('DEMO-003', 'MG Road Transporter', 'van', 'in-transit', 12.9750, 77.6060, 12.9719, 77.6412, 90, 3500, 'aggressive', 65, 42),
+-- Route: Silk Board (Congested) → Koramangala (High)
+('DEMO-004', 'Silk Board Carrier', 'truck', 'in-transit', 12.9172, 77.6229, 12.9279, 77.6271, 68, 16000, 'cautious', 30, 22),
+-- Route: Indiranagar (High) → M.G. Road (High)
+('DEMO-005', 'Indiranagar Swift', 'car', 'in-transit', 12.9719, 77.6412, 12.9750, 77.6060, 95, 500, 'aggressive', 250, 55),
+-- Route: Hebbal (High) → Jayanagar (High)
+('DEMO-006', 'Hebbal Long Haul', 'truck', 'in-transit', 13.0358, 77.5970, 12.9250, 77.5838, 55, 20000, 'efficient', 180, 35),
+-- Route: Jayanagar (High) → Electronic City (Medium)
+('DEMO-007', 'Jayanagar Runner', 'van', 'in-transit', 12.9250, 77.5838, 12.8456, 77.6603, 78, 3200, 'balanced', 135, 38),
+-- Route: Electronic City → Silk Board (Congested)
+('DEMO-008', 'E-City Shuttle', 'van', 'in-transit', 12.8456, 77.6603, 12.9172, 77.6229, 82, 3000, 'cautious', 350, 30),
+-- Route: Koramangala (High) → M.G. Road (High)
+('DEMO-009', 'Koramangala Courier', 'car', 'in-transit', 12.9279, 77.6271, 12.9750, 77.6060, 88, 480, 'aggressive', 315, 48),
+-- Route: Whitefield (High) → Indiranagar (High)
+('DEMO-010', 'Tech Park Express', 'car', 'in-transit', 12.9698, 77.7499, 12.9719, 77.6412, 75, 520, 'balanced', 280, 52)
 ON CONFLICT (id) DO NOTHING;
 
 -- Initial incidents (realistic Bangalore traffic scenarios)

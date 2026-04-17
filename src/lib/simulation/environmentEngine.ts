@@ -1,6 +1,9 @@
 /**
  * Environment Engine: Simulates weather, traffic, and time-of-day effects
+ * Now with real-time weather integration from OpenWeatherMap
  */
+
+import { fetchCurrentWeather, type WeatherData } from '../weather/weatherService';
 
 export type WeatherCondition = 'clear' | 'cloudy' | 'rain' | 'heavy_rain' | 'fog' | 'storm';
 
@@ -29,8 +32,13 @@ export class EnvironmentEngine {
   private lastUpdate: number = Date.now();
   private weatherChangeInterval: number = 5 * 60 * 1000; // Change weather every 5 min
   private lastWeatherChange: number = Date.now();
+  private useRealWeather: boolean = true; // Use real-time weather by default
+  private lastRealWeatherFetch: number = 0;
+  private realWeatherFetchInterval: number = 15 * 60 * 1000; // Fetch real weather every 15 min
 
-  constructor() {
+  constructor(useRealWeather: boolean = true) {
+    this.useRealWeather = useRealWeather;
+    
     // Initialize with default Bangalore conditions
     this.state = {
       condition: 'clear',
@@ -46,6 +54,38 @@ export class EnvironmentEngine {
     };
     
     this.updateDerivedFactors();
+    
+    // Fetch real weather immediately if enabled
+    if (this.useRealWeather) {
+      this.fetchAndApplyRealWeather();
+    }
+  }
+  
+  /**
+   * Fetch and apply real-time weather from OpenWeatherMap
+   */
+  private async fetchAndApplyRealWeather() {
+    try {
+      console.log('🌦️  Fetching real-time weather for Bangalore...');
+      const weather: WeatherData = await fetchCurrentWeather();
+      
+      // Apply real weather to simulation state
+      this.state.condition = weather.condition;
+      this.state.temperature = weather.temperature;
+      this.state.visibilityMeters = weather.visibility;
+      this.state.windSpeed = weather.windSpeed;
+      this.state.weatherSpeedFactor = weather.weatherSpeedFactor;
+      
+      console.log(`✅ Real weather applied: ${weather.condition}, ${weather.temperature}°C, ${weather.visibility}m visibility`);
+      console.log(`   Speed factor: ${(weather.weatherSpeedFactor * 100).toFixed(0)}%`);
+      
+      this.lastRealWeatherFetch = Date.now();
+      this.updateDerivedFactors();
+    } catch (error) {
+      console.error('❌ Failed to fetch real weather, using simulated:', error);
+      // Fall back to simulated weather
+      this.useRealWeather = false;
+    }
   }
 
   /**
@@ -62,10 +102,18 @@ export class EnvironmentEngine {
     // Update rush hour status
     this.updateRushHour();
     
-    // Update weather periodically
-    if (now - this.lastWeatherChange > this.weatherChangeInterval) {
-      this.updateWeather();
-      this.lastWeatherChange = now;
+    // Update weather (real-time or simulated)
+    if (this.useRealWeather) {
+      // Fetch real weather every 15 minutes
+      if (now - this.lastRealWeatherFetch > this.realWeatherFetchInterval) {
+        this.fetchAndApplyRealWeather();
+      }
+    } else {
+      // Use simulated weather changes
+      if (now - this.lastWeatherChange > this.weatherChangeInterval) {
+        this.updateWeather();
+        this.lastWeatherChange = now;
+      }
     }
     
     // Update congestion based on time of day and weather
@@ -203,16 +251,21 @@ export class EnvironmentEngine {
    */
   private updateDerivedFactors() {
     // Weather affects speed
-    const weatherFactors = {
-      clear: 1.0,
-      cloudy: 0.95,
-      rain: 0.75,
-      heavy_rain: 0.5,
-      fog: 0.6,
-      storm: 0.4
-    };
+    // If using real weather, keep the factor from API
+    // If simulated, calculate from condition
+    if (!this.useRealWeather) {
+      const weatherFactors = {
+        clear: 1.0,
+        cloudy: 0.95,
+        rain: 0.75,
+        heavy_rain: 0.5,
+        fog: 0.6,
+        storm: 0.4
+      };
 
-    this.state.weatherSpeedFactor = weatherFactors[this.state.condition];
+      this.state.weatherSpeedFactor = weatherFactors[this.state.condition];
+    }
+    // else: weatherSpeedFactor already set by real weather API
     
     // Congestion affects speed (exponential decay)
     // 0% congestion = 1.0x, 50% = 0.6x, 100% = 0.2x
@@ -241,6 +294,25 @@ export class EnvironmentEngine {
     this.updateTemperature();
     this.updateVisibility();
     this.updateDerivedFactors();
+  }
+  
+  /**
+   * Toggle between real-time and simulated weather
+   */
+  setWeatherMode(useRealWeather: boolean) {
+    this.useRealWeather = useRealWeather;
+    console.log(`🌦️  Weather mode: ${useRealWeather ? 'REAL-TIME' : 'SIMULATED'}`);
+    
+    if (useRealWeather) {
+      this.fetchAndApplyRealWeather();
+    }
+  }
+  
+  /**
+   * Get current weather mode
+   */
+  getWeatherMode(): 'real' | 'simulated' {
+    return this.useRealWeather ? 'real' : 'simulated';
   }
 
   /**

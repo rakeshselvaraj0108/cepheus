@@ -2,6 +2,8 @@
 import { RealTrafficMap as TrafficMap } from '@/components/visualization/RealTrafficMap';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { WeatherDisplay } from '@/components/dashboard/WeatherDisplay';
+import TrafficNotifications from '@/components/dashboard/TrafficNotifications';
 import { useTraffic } from '@/lib/TrafficContext';
 import { Truck, Car, AlertTriangle, Layers, Navigation } from 'lucide-react';
 import { useState } from 'react';
@@ -15,6 +17,8 @@ export default function MapPage() {
 
     return (
         <div className="h-[calc(100vh-140px)] flex gap-4 relative">
+            {/* Traffic Notifications */}
+            <TrafficNotifications />
 
             {/* Map Container */}
             <div className="flex-1 rounded-xl overflow-hidden border border-white/10 relative shadow-2xl bg-black">
@@ -26,6 +30,9 @@ export default function MapPage() {
 
                 {/* Floating Map Controls */}
                 <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 items-end">
+                    {/* Weather Display */}
+                    <WeatherDisplay />
+                    
                     <div className="flex gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 shadow-lg">
                         <Button
                             variant="ghost"

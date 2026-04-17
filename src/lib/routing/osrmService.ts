@@ -23,6 +23,11 @@ export interface Route {
   totalDistance: number; // meters
   totalDuration: number; // seconds
   geometry: any; // GeoJSON LineString
+  segments?: {
+    speed: number;
+    distance: number;
+    duration: number;
+  }[];
 }
 
 export interface OSRMRouteOptions {
@@ -54,7 +59,8 @@ export async function getRoute(
       alternatives: alternatives ? 'true' : 'false',
       steps: steps ? 'true' : 'false',
       overview,
-      geometries: 'geojson'
+      geometries: 'geojson',
+      annotations: 'speed', // Get speed data for segments
     };
 
     const response = await axios.get(url, { params, timeout: 10000 });
@@ -92,11 +98,27 @@ export async function getRoute(
       };
     });
 
+    // Extract segments speed data if available
+    let segments: any[] = [];
+    if (route.legs && route.legs[0]?.annotation?.speed) {
+       // OSRM returns annotations node-to-node. For N coordinates, there are N-1 segments.
+       const speeds = route.legs[0].annotation.speed;
+       const dists = route.legs[0].annotation.distance || [];
+       const durats = route.legs[0].annotation.duration || [];
+       
+       segments = speeds.map((speed: number, idx: number) => ({
+         speed: speed * 3.6, // Convert m/s to km/h (OSM uses m/s usually, check docs: "speed" is usually m/s)
+         distance: dists[idx] || 0,
+         duration: durats[idx] || 0
+       }));
+    }
+
     return {
       waypoints,
       totalDistance: route.distance, // meters
       totalDuration: route.duration, // seconds
-      geometry: route.geometry
+      geometry: route.geometry,
+      segments
     };
   } catch (error: any) {
     console.error('❌ OSRM API error:', error.message);
@@ -123,7 +145,7 @@ export async function getRouteAlternatives(
       geometries: 'geojson'
     };
 
-    const response = await axios.get(url, { params, timeout: 10000 });
+    const response = await axios.get(url, { params, timeout: 20000 });
 
     if (response.data.code !== 'Ok' || !response.data.routes) {
       return [];
@@ -140,8 +162,13 @@ export async function getRouteAlternatives(
       totalDuration: route.duration,
       geometry: route.geometry
     }));
-  } catch (error) {
-    console.error('❌ Failed to get route alternatives:', error);
+  } catch (error: any) {
+    // Only log warning for timeouts or common connectivity issues to avoid spamming console
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      console.warn(`⚠️ OSRM route alternative calc timed out (${error.message}). Skipping.`);
+    } else {
+      console.error('❌ Failed to get route alternatives:', error.message);
+    }
     return [];
   }
 }

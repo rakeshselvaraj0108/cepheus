@@ -12,7 +12,21 @@ INSERT OR IGNORE INTO fuel_stations (id, name, location_lat, location_lng, fuel_
 ('FS-003', 'Whitefield Highway Fuel', 12.9698, 77.7499, 106.80, 5),
 ('FS-004', 'Bannerghatta Road Station', 12.8930, 77.5960, 104.50, 3),
 ('FS-005', 'Hebbal Flyover Fuel', 13.0358, 77.5970, 107.20, 4),
-('FS-006', 'Airport Road Petrol', 13.1986, 77.7066, 108.90, 5);
+('FS-006', 'Airport Road Petrol', 13.1986, 77.7066, 108.90, 5),
+('FS-007', 'Koramangala 80ft Road', 12.9352, 77.6245, 106.20, 4),
+('FS-008', 'Indiranagar Metro Station Pump', 12.9784, 77.6408, 107.50, 4),
+('FS-009', 'Majestic Bus Stand Fuel', 12.9767, 77.5713, 104.80, 8),
+('FS-010', 'Malleshwaram Cross Pump', 13.0055, 77.5692, 105.90, 3),
+('FS-011', 'Yeshwanthpur Industrial Fuel', 13.0238, 77.5458, 103.50, 10),
+('FS-012', 'Marathahalli Bridge Fuel', 12.9554, 77.6989, 106.50, 6),
+('FS-013', 'Bellandur EcoSpace Pump', 12.9257, 77.6761, 105.80, 5),
+('FS-014', 'HSR Layout Sector 2', 12.9121, 77.6446, 106.10, 4),
+('FS-015', 'Banashankari BDA Complex', 12.9255, 77.5468, 104.90, 4),
+('FS-016', 'Mysore Road Satellite Station', 12.9436, 77.5190, 103.80, 10),
+('FS-017', 'Old Madras Road HP', 12.9922, 77.6631, 105.20, 5),
+('FS-018', 'Sarjapur Road Wipro Gate', 12.9168, 77.6811, 106.80, 6),
+('FS-019', 'JP Nagar 24th Main', 12.9090, 77.5855, 105.50, 3),
+('FS-020', 'RT Nagar Main Road', 13.0189, 77.5947, 106.30, 4);
 
 -- Traffic zones (major areas in Bangalore)
 INSERT OR IGNORE INTO zones (id, name, center_lat, center_lng, radius_meters, congestion_level, avg_speed, zone_type) VALUES
@@ -29,27 +43,28 @@ INSERT OR IGNORE INTO zones (id, name, center_lat, center_lng, radius_meters, co
 ('ZONE-BTMLY', 'BTM Layout', 12.9165, 77.6101, 1300, 65, 23, 'residential'),
 ('ZONE-AIRPT', 'Kempegowda Airport', 13.1986, 77.7066, 3000, 25, 60, 'highway');
 
--- Initial vehicle fleet (mix of trucks, cars, vans)
-INSERT OR IGNORE INTO vehicles (id, name, type, status, location_lat, location_lng, fuel, cargo_capacity, ai_personality, heading, speed) VALUES
--- Trucks (heavy cargo)
-('FLEET-001', 'Ashok Leyland Truck Alpha', 'truck', 'in-transit', 12.9716, 77.5946, 78, 15000, 'efficient', 45, 32),
-('FLEET-002', 'Tata Prima Beta', 'truck', 'in-transit', 12.8500, 77.6600, 65, 18000, 'cautious', 120, 28),
-('FLEET-003', 'Mahindra Blazo Gamma', 'truck', 'loading', 12.9698, 77.7499, 92, 16000, 'balanced', 0, 0),
-('FLEET-004', 'Eicher Pro Delta', 'truck', 'in-transit', 12.9172, 77.6229, 45, 12000, 'aggressive', 200, 38),
-('FLEET-005', 'BharatBenz Epsilon', 'truck', 'refueling', 13.0358, 77.5970, 12, 17000, 'efficient', 0, 0),
-('FLEET-006', 'Volvo FH16 Zeta', 'truck', 'in-transit', 12.9250, 77.5838, 88, 20000, 'balanced', 315, 42),
-
--- Vans (medium cargo)
-('VAN-101', 'Force Traveller V1', 'van', 'in-transit', 12.9279, 77.6271, 70, 3500, 'aggressive', 90, 45),
-('VAN-102', 'Mahindra Supro V2', 'van', 'loading', 12.9719, 77.6412, 85, 3000, 'balanced', 0, 0),
-('VAN-103', 'Tata Winger V3', 'van', 'in-transit', 12.9750, 77.6060, 55, 3200, 'cautious', 180, 38),
-('VAN-104', 'Maruti Eeco V4', 'van', 'in-transit', 13.0030, 77.5710, 92, 2800, 'efficient', 270, 52),
-
--- Cars (light cargo/courier)
-('CAR-201', 'Swift Dzire Express', 'car', 'in-transit', 12.9165, 77.6101, 68, 500, 'aggressive', 135, 58),
-('CAR-202', 'Honda City Courier', 'car', 'in-transit', 13.1986, 77.7066, 75, 480, 'balanced', 225, 62),
-('CAR-203', 'Hyundai Verna Quick', 'car', 'idle', 12.8456, 77.6603, 82, 520, 'cautious', 0, 0),
-('CAR-204', 'Toyota Etios Rush', 'car', 'in-transit', 12.9698, 77.7499, 48, 490, 'aggressive', 60, 65);
+-- 10 Demo vehicles traveling between high-traffic areas (from CSV dataset)
+INSERT OR IGNORE INTO vehicles (id, name, type, status, location_lat, location_lng, destination_lat, destination_lng, fuel, cargo_capacity, ai_personality, heading, speed) VALUES
+-- Route: Koramangala (High) → Whitefield (High)
+('DEMO-001', 'Koramangala Express', 'truck', 'in-transit', 12.9279, 77.6271, 12.9698, 77.7499, 85, 15000, 'efficient', 75, 28),
+-- Route: Whitefield (High) → Hebbal (High)
+('DEMO-002', 'Whitefield Hauler', 'truck', 'in-transit', 12.9698, 77.7499, 13.0358, 77.5970, 72, 18000, 'balanced', 320, 32),
+-- Route: M.G. Road (High) → Indiranagar (High)
+('DEMO-003', 'MG Road Transporter', 'van', 'in-transit', 12.9750, 77.6060, 12.9719, 77.6412, 90, 3500, 'aggressive', 65, 42),
+-- Route: Silk Board (Congested) → Koramangala (High)
+('DEMO-004', 'Silk Board Carrier', 'truck', 'in-transit', 12.9172, 77.6229, 12.9279, 77.6271, 68, 16000, 'cautious', 30, 22),
+-- Route: Indiranagar (High) → M.G. Road (High)
+('DEMO-005', 'Indiranagar Swift', 'car', 'in-transit', 12.9719, 77.6412, 12.9750, 77.6060, 95, 500, 'aggressive', 250, 55),
+-- Route: Hebbal (High) → Jayanagar (High)
+('DEMO-006', 'Hebbal Long Haul', 'truck', 'in-transit', 13.0358, 77.5970, 12.9250, 77.5838, 55, 20000, 'efficient', 180, 35),
+-- Route: Jayanagar (High) → Electronic City (Medium)
+('DEMO-007', 'Jayanagar Runner', 'van', 'in-transit', 12.9250, 77.5838, 12.8456, 77.6603, 78, 3200, 'balanced', 135, 38),
+-- Route: Electronic City → Silk Board (Congested)
+('DEMO-008', 'E-City Shuttle', 'van', 'in-transit', 12.8456, 77.6603, 12.9172, 77.6229, 82, 3000, 'cautious', 350, 30),
+-- Route: Koramangala (High) → M.G. Road (High)
+('DEMO-009', 'Koramangala Courier', 'car', 'in-transit', 12.9279, 77.6271, 12.9750, 77.6060, 88, 480, 'aggressive', 315, 48),
+-- Route: Whitefield (High) → Indiranagar (High)
+('DEMO-010', 'Tech Park Express', 'car', 'in-transit', 12.9698, 77.7499, 12.9719, 77.6412, 75, 520, 'balanced', 280, 52);
 
 -- Initial incidents (realistic Bangalore traffic scenarios)
 INSERT OR IGNORE INTO incidents (id, type, severity, location_lat, location_lng, affected_radius_meters, status, description, speed_reduction_factor) VALUES

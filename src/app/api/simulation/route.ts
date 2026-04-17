@@ -61,10 +61,10 @@ function formatStateForFrontend() {
     zones: formattedZones,
     incidents: formattedIncidents,
     environment: environment ? {
-      condition: environment.condition,
-      temperature: environment.temperature,
-      congestionLevel: environment.global_congestion_level,
-      rushHour: environment.rush_hour === 1
+      condition: (environment as any).condition,
+      temperature: (environment as any).temperature,
+      congestionLevel: (environment as any).global_congestion_level,
+      rushHour: (environment as any).rush_hour === 1
     } : null,
     lastUpdated: Date.now()
   };

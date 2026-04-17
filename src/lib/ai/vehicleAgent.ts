@@ -1,25 +1,34 @@
 import axios from 'axios';
-import type { Vehicle, TrafficZone, Incident } from '../types';
+import type { Vehicle, TrafficZone } from '../types';
+import { findOptimalRoute, type OptimizedRoute } from '../routing/routeOptimization';
+import type { TrafficIncident } from '../traffic/freeTrafficService';
 
 // OpenRouter API configuration
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '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';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-const MODEL = 'qwen/qwen2.5-72b-instruct'; // Fast Qwen model (remove :free suffix)
+const MODEL = 'liquid/lfm-2.5-1.2b-thinking:free'; // LFM-2.5 free model for intelligent decision making
 
 export interface DecisionContext {
   vehicle: Vehicle;
+  destination?: { lat: number; lng: number };
+  currentRoute?: OptimizedRoute;
   nearbyZones: TrafficZone[];
-  nearbyIncidents: Incident[];
+  nearbyIncidents: TrafficIncident[];
   environment: {
     weather: string;
+    temperature?: number;
     congestion: number;
+    globalCongestionLevel?: number;
     rushHour: boolean;
+    weatherSpeedFactor?: number;
+    visibilityMeters?: number;
   };
   fuelStations?: Array<{
     name: string;
     distance: number;
     lat: number;
     lng: number;
+    price?: number;
   }>;
 }
 
@@ -47,26 +56,46 @@ export class VehicleAgent {
   }
 
   /**
-   * Make an AI decision based on current context
+   * Make an AI decision with route optimization and situation imagination
    */
   async makeDecision(context: DecisionContext): Promise<AIDecision | null> {
     // Cooldown check
     const now = Date.now();
     if (now - this.lastDecisionTime < this.decisionCooldown) {
-      return null; // Too soon to make another decision
+      return null;
     }
 
     try {
-      // Build prompt based on context
-      const prompt = this.buildPrompt(context);
+      // Step 1: Calculate optimal route using Dijkstra's algorithm
+      if (context.destination && !context.currentRoute) {
+        console.log(`🧮 ${this.vehicleId}: Computing optimal route...`);
+        context.currentRoute = await findOptimalRoute(
+          context.vehicle.location,
+          context.destination,
+          context.nearbyZones,
+          context.nearbyIncidents,
+          context.environment.weatherSpeedFactor || 1.0,
+          context.vehicle.type
+        );
+        console.log(`✅ Route calculated: ${(context.currentRoute.totalDistance / 1000).toFixed(1)}km, ${Math.round(context.currentRoute.estimatedTime / 60)}min`);
+      }
 
-      // Call OpenRouter API with Qwen model
+      // Step 2: Imagine the situation and make decision
+      const prompt = this.buildSituationImaginationPrompt(context);
+
+      // Step 3: Call GLM-4.5 AI model
+      console.log(`🤖 ${this.vehicleId}: Consulting AI for decision...`);
       const response = await this.callAI(prompt, context);
 
-      // Parse and validate response
+      // Step 4: Parse decision
       const decision = this.parseDecision(response, context);
 
       this.lastDecisionTime = now;
+      
+      // Log detailed thinking
+      console.log(`💭 ${this.vehicleId} AI Decision: ${decision.action}`);
+      console.log(`   Reasoning: ${decision.reasoning}`);
+      
       return decision;
     } catch (error) {
       console.error(`❌ AI decision failed for ${this.vehicleId}:`, error);
@@ -75,78 +104,101 @@ export class VehicleAgent {
   }
 
   /**
-   * Build a detailed prompt for the AI model
+   * Build prompt that makes AI imagine being in the situation
    */
-  private buildPrompt(context: DecisionContext): string {
-    const { vehicle, nearbyZones, nearbyIncidents, environment, fuelStations } = context;
+  private buildSituationImaginationPrompt(context: DecisionContext): string {
+    const { vehicle, nearbyZones, nearbyIncidents, environment, currentRoute } = context;
 
     // Personality traits
     const personalityTraits = {
-      aggressive: 'You prioritize speed and efficiency, willing to take risks. You prefer the fastest routes.',
-      cautious: 'You prioritize safety and fuel economy. You avoid risky maneuvers and prefer slower, safer routes.',
-      balanced: 'You balance speed, safety, and cost. You make practical decisions.',
-      efficient: 'You optimize for fuel efficiency and cost savings. You plan ahead and avoid unnecessary stops.'
+      aggressive: 'You are a bold, speed-focused driver who values time over caution. You take calculated risks.',
+      cautious: 'You are a careful, safety-first driver who never rushes. You prioritize avoiding accidents.',
+      balanced: 'You are a practical driver who balances speed, safety, and efficiency wisely.',
+      efficient: 'You are a cost-conscious driver obsessed with fuel economy and route optimization.'
     };
 
-    // Nearby zone summary
-    const zoneInfo = nearbyZones.length > 0
-      ? nearbyZones.map(z => `${z.name || z.area || z.id} (Congestion: ${z.congestionLevel}%, Avg Speed: ${z.avgSpeed || 'N/A'} km/h)`).join(', ')
-      : 'No nearby zones';
+    // Build detailed situation description
+    const situation = `
+🚛 YOU ARE THE DRIVER OF: ${vehicle.name} (${vehicle.type.toUpperCase()})
+📍 Current Location: ${Number(vehicle.location?.lat || 0).toFixed(4)}°N, ${Number(vehicle.location?.lng || 0).toFixed(4)}°E
+🎯 Your Destination: ${context.destination ? `${context.destination.lat.toFixed(4)}°N, ${context.destination.lng.toFixed(4)}°E` : 'Unknown'}
+⛽ Fuel Level: ${Math.round(vehicle.fuel)}% (${vehicle.fuel < 20 ? '⚠️ LOW!' : vehicle.fuel < 50 ? '📉 Medium' : '✅ Good'})
+⚡ Current Speed: ${vehicle.speed || 0} km/h
+🧳 Cargo Weight: ${vehicle.cargoWeight || 0} kg / ${vehicle.cargoCapacity || 5000} kg capacity
 
-    // Incident summary
-    const incidentInfo = nearbyIncidents.length > 0
-      ? nearbyIncidents.map(i => `${i.type} at ${i.description} (Severity: ${i.severity})`).join(', ')
-      : 'No incidents nearby';
+🌦️ WEATHER & ENVIRONMENT:
+- Weather Condition: ${environment.weather} ${(environment.weatherSpeedFactor || 1) < 0.7 ? '⚠️ (Hazardous)' : ''}
+- Temperature: ${environment.temperature || 28}°C
+- Visibility: ${environment.visibilityMeters || 10000}m
+- Global Traffic Congestion: ${environment.globalCongestionLevel || environment.congestion}%
+- Rush Hour: ${environment.rushHour ? '🔴 YES - Peak traffic time!' : '🟢 No'}
+- Weather Speed Impact: ${((1 - (environment.weatherSpeedFactor || 1)) * 100).toFixed(0)}% slower
 
-    // Fuel station summary
-    const fuelInfo = fuelStations && fuelStations.length > 0
-      ? `Nearest fuel station: ${fuelStations[0].name} (${Math.round(fuelStations[0].distance / 1000)} km away)`
-      : 'No fuel stations nearby';
+🛣️ YOUR CALCULATED ROUTE:
+${currentRoute ? `
+- Total Distance: ${(currentRoute.totalDistance / 1000).toFixed(2)} km
+- Estimated Time: ${Math.round(currentRoute.estimatedTime / 60)} minutes
+- Fuel Cost: ₹${currentRoute.fuelCost}
+- Average Congestion: ${currentRoute.congestionLevel}%
+- Incidents on Route: ${currentRoute.incidents.length}
+- Optimization Reasoning: ${currentRoute.reasoning}
+` : '❌ NO ROUTE CALCULATED YET'}
 
-    const prompt = `You are an AI driver controlling vehicle "${vehicle.name}" (${vehicle.type}) in Bangalore, India.
+🚦 NEARBY TRAFFIC ZONES:
+${nearbyZones.length > 0 ? nearbyZones.map(z => `
+- ${z.name || z.area}: ${z.congestionLevel}% congestion, avg ${z.avgSpeed || 40} km/h, ${z.vehicleCount || 0} vehicles
+`).join('') : '- No traffic zone data available'}
 
-**Your Personality**: ${personalityTraits[this.personality]}
+⚠️ ACTIVE INCIDENTS:
+${nearbyIncidents.length > 0 ? nearbyIncidents.map((inc, i) => `
+${i + 1}. ${inc.type.toUpperCase()} [${inc.severity}] - ${inc.description}
+   Location: ${inc.location.lat.toFixed(4)}, ${inc.location.lng.toFixed(4)}
+   Delay: ${inc.delayMinutes || 0} minutes
+`).join('') : '✅ No incidents reported'}
 
-**Current Situation**:
-- Status: ${vehicle.status}
-- Location: ${vehicle.location.lat.toFixed(4)}°N, ${vehicle.location.lng.toFixed(4)}°E
-- Current Speed: ${vehicle.speed || 0} km/h
-- Fuel Level: ${Math.round(vehicle.fuel)}%
-- Cargo: ${vehicle.cargoWeight ? `${Math.round(vehicle.cargoWeight)} kg` : 'Empty'}
+⛽ NEAREST FUEL STATIONS:
+${context.fuelStations && context.fuelStations.length > 0 ? context.fuelStations.slice(0, 2).map(fs => `
+- ${fs.name}: ${fs.distance.toFixed(1)}km away, ₹${fs.price || 105}/L
+`).join('') : '- No fuel station data available'}
 
-**Environment**:
-- Weather: ${environment.weather}
-- Global Traffic Congestion: ${environment.congestion}%
-- Rush Hour: ${environment.rushHour ? 'YES' : 'NO'}
-- Nearby Zones: ${zoneInfo}
-- ${fuelInfo}
+---
 
-**Incidents**:
-${incidentInfo}
+🧠 PERSONALITY: ${personalityTraits[this.personality]}
 
-**Question**: What should you do right now as a human driver in this situation?
+---
 
-Think step by step:
-1. Assess your current situation (fuel, speed, cargo, location)
-2. Consider environmental factors (weather, traffic, incidents)
-3. Make a decision based on your personality and priorities
+🤔 IMAGINE YOURSELF IN THIS SITUATION:
 
-**Available Actions**:
-- CONTINUE: Keep current route and speed
-- REROUTE: Change route to avoid traffic/incident (provide reason)
-- REFUEL: Go to nearest fuel station
-- SLOW_DOWN: Reduce speed due to conditions (provide target speed)
-- SPEED_UP: Increase speed on clear road (provide target speed)
-- REST_BREAK: Pull over for mandatory break (only for long trips)
+You are physically sitting in the driver's seat of this ${vehicle.type}, feeling the steering wheel in your hands. 
+You can see the road ahead through the windshield, feel the vibration of the engine, hear the traffic around you.
+The fuel gauge shows ${Math.round(vehicle.fuel)}%. The weather is ${environment.weather}. Traffic is ${(environment.globalCongestionLevel || environment.congestion) > 70 ? 'HEAVY' : (environment.globalCongestionLevel || environment.congestion) > 40 ? 'MODERATE' : 'LIGHT'}.
 
-Respond in this EXACT format:
-ACTION: [action name]
-REASONING: [your reasoning in 1-2 sentences]
-TARGET_SPEED: [number or N/A]
+${vehicle.fuel < 20 ? '⚠️ Your fuel warning light is BLINKING. You feel anxious about running out of fuel.' : ''}
+${nearbyIncidents.length > 0 ? `⚠️ You hear on the radio: "${nearbyIncidents[0].description}". This worries you.` : ''}
+${environment.rushHour ? '🚨 The roads are PACKED with vehicles. Everyone is honking. You are stuck in bumper-to-bumper traffic.' : ''}
+${environment.weather !== 'clear' ? `🌧️ Your windshield wipers are on. Visibility is reduced. You must drive more carefully.` : ''}
+
+What do YOU, as the driver, decide to do RIGHT NOW?
+
+AVAILABLE ACTIONS:
+1. **continue** - Keep following current route, maintain speed
+2. **reroute** - Recalculate route to avoid congestion/incidents (uses Dijkstra's algorithm)
+3. **refuel** - Stop at nearest fuel station immediately
+4. **slow_down** - Reduce speed due to conditions
+5. **speed_up** - Increase speed if conditions allow  
+6. **rest_break** - Stop to rest (if fatigued or required by law)
+
+🎯 RESPOND IN THIS FORMAT:
+ACTION: [chosen action]
+REASONING: [Explain WHY you made this decision as if you're the driver. What did you see? What worried you? What made you choose this? Use first-person "I"]
+TARGET_SPEED: [If speed change, specify km/h]
 PRIORITY: [low/medium/high/critical]
-CONFIDENCE: [0.0-1.0]`;
+CONFIDENCE: [0.0-1.0]
 
-    return prompt;
+Think like a REAL HUMAN DRIVER in Bangalore traffic. Consider your personality, the dangers, the costs, and your gut feeling.
+`;
+
+    return situation;
   }
 
   /**
@@ -177,7 +229,7 @@ CONFIDENCE: [0.0-1.0]`;
             'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
             'Content-Type': 'application/json'
           },
-          timeout: 15000
+          timeout: 5000 // Reduced timeout
         }
       );
 
@@ -186,9 +238,37 @@ CONFIDENCE: [0.0-1.0]`;
       
       return aiResponse;
     } catch (error: any) {
+      if (error.response?.status === 402 || 
+          error.response?.status === 429 || 
+          error.code === 'ECONNABORTED' ||
+          error.response?.status === 401) { 
+        console.warn(`⚠️ AI API Issue (${error.code || error.response?.status}), using fallback.`);
+        return this.generateFallbackResponse(context);
+      }
+      
       console.error('❌ OpenRouter API error:', error.response?.data || error.message);
-      throw error;
+      // Even for other errors, fallback instead of crashing
+      return this.generateFallbackResponse(context);
     }
+  }
+
+  /**
+   * Generate a deterministic fallback response when AI is offline
+   */
+  private generateFallbackResponse(context: DecisionContext): string {
+    const isEmergency = context.vehicle.fuel < 10;
+    const inTraffic = (context.environment.globalCongestionLevel || 0) > 70;
+    
+    // Heuristic decision tree
+    if (isEmergency) {
+      return `ACTION: refuel\nREASONING: [FALLBACK] Fuel low. Finding station.\nTARGET_SPEED: 30\nPRIORITY: critical\nCONFIDENCE: 1.0`;
+    }
+    
+    if (inTraffic) {
+      return `ACTION: reroute\nREASONING: [FALLBACK] Heavy traffic. Seeking alternative.\nTARGET_SPEED: 35\nPRIORITY: medium\nCONFIDENCE: 0.85`;
+    }
+
+    return `ACTION: continue\nREASONING: [FALLBACK] Conditions normal. Proceeding.\nTARGET_SPEED: 60\nPRIORITY: low\nCONFIDENCE: 0.95`;
   }
 
   /**

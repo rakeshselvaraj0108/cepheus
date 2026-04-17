@@ -70,9 +70,10 @@ export interface AppNotification {
 const TrafficContext = createContext<TrafficContextType | undefined>(undefined);
 
 export function TrafficProvider({ children }: { children: ReactNode }) {
-    const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-    const [zones, setZones] = useState<TrafficZone[]>(initialZones);
-    const [incidents, setIncidents] = useState<Incident[]>(initialIncidents);
+    // Start with empty state to avoid "Flash of Mock Data" before DB sync
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [zones, setZones] = useState<TrafficZone[]>([]);
+    const [incidents, setIncidents] = useState<Incident[]>([]);
     const [isSimulating, setIsSimulating] = useState(true);
     const [lastSyncTime, setLastSyncTime] = useState(new Date());
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -83,55 +84,26 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
         alertThreshold: 80,
         darkMode: true,
         autoRefresh: true,
-        refreshInterval: 5,
+        refreshInterval: 0.3, // 300ms sync to match v19 engine
         mapStyle: 'dark',
     });
 
-    // ---- Vehicle Operations ----
-    const addVehicle = useCallback((vehicleData: Omit<Vehicle, 'id' | 'number'>) => {
-        const id = `FLEET-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`;
-        const number = `TM-X-${Math.floor(Math.random() * 900) + 100}`;
-        const newVehicle: Vehicle = { ...vehicleData, id, number };
-        setVehicles(prev => [...prev, newVehicle]);
-        addNotification(`${newVehicle.name} deployed successfully`, 'success');
-    }, []);
-
-    const removeVehicle = useCallback((id: string) => {
-        setVehicles(prev => {
-            const vehicle = prev.find(v => v.id === id);
-            if (vehicle) {
-                addNotification(`${vehicle.name} removed from fleet`, 'warning');
+    // Load settings from localStorage on mount
+    useEffect(() => {
+        const savedSettings = localStorage.getItem('trafficmaxxer_settings');
+        if (savedSettings) {
+            try {
+                setSettings(JSON.parse(savedSettings));
+            } catch (e) {
+                console.error('Failed to load settings:', e);
             }
-            return prev.filter(v => v.id !== id);
-        });
-    }, []);
-
-    const updateVehicleStatus = useCallback((id: string, status: Vehicle['status']) => {
-        setVehicles(prev => prev.map(v => v.id === id ? { ...v, status } : v));
-    }, []);
-
-    const updateVehicleFuel = useCallback((id: string, fuel: number) => {
-        setVehicles(prev => prev.map(v => v.id === id ? { ...v, fuel: Math.max(0, Math.min(100, fuel)) } : v));
-    }, []);
-
-    // ---- Zone Operations ----
-    const updateZoneCongestion = useCallback((id: string, level: number) => {
-        setZones(prev => prev.map(z => z.id === id ? { ...z, congestionLevel: Math.max(0, Math.min(100, level)) } : z));
-    }, []);
-
-    // ---- Incident Operations ----
-    const addIncident = useCallback((incidentData: Omit<Incident, 'id'>) => {
-        const id = `INC-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`;
-        setIncidents(prev => [...prev, { ...incidentData, id }]);
-        if (settings.incidentAlerts) {
-            addNotification(`New ${incidentData.type} incident: ${incidentData.description}`, 'danger');
         }
-    }, [settings.incidentAlerts]);
-
-    const removeIncident = useCallback((id: string) => {
-        setIncidents(prev => prev.filter(i => i.id !== id));
-        addNotification(`Incident ${id} resolved`, 'success');
     }, []);
+
+    // Save settings to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('trafficmaxxer_settings', JSON.stringify(settings));
+    }, [settings]);
 
     // ---- Notifications ----
     const addNotification = useCallback((message: string, type: 'info' | 'warning' | 'danger' | 'success') => {
@@ -177,8 +149,70 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    // ---- Vehicle Operations ----
+    const addVehicle = useCallback((vehicleData: Omit<Vehicle, 'id' | 'number'>) => {
+        const id = `FLEET-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`;
+        const number = `TM-X-${Math.floor(Math.random() * 900) + 100}`;
+        const newVehicle: Vehicle = { ...vehicleData, id, number };
+        setVehicles(prev => [...prev, newVehicle]);
+        addNotification(`${newVehicle.name} deployed successfully`, 'success');
+    }, [addNotification]);
+
+    const removeVehicle = useCallback(async (id: string) => {
+        // Optimistic update
+        setVehicles(prev => prev.filter(v => v.id !== id));
+        
+        try {
+            const res = await fetch(`/api/vehicles?id=${id}`, {
+                method: 'DELETE',
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                addNotification(`Vehicle ${id} permanently deleted`, 'success');
+            } else {
+                throw new Error(data.error || 'Failed to delete');
+            }
+        } catch (error) {
+            console.error('Delete failed:', error);
+            addNotification(`Failed to delete vehicle: ${error}`, 'danger');
+            // Revert on failure (reload data)
+            syncData(); 
+        }
+    }, [syncData]);
+
+    const updateVehicleStatus = useCallback((id: string, status: Vehicle['status']) => {
+        setVehicles(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+    }, []);
+
+    const updateVehicleFuel = useCallback((id: string, fuel: number) => {
+        setVehicles(prev => prev.map(v => v.id === id ? { ...v, fuel: Math.max(0, Math.min(100, fuel)) } : v));
+    }, []);
+
+    // ---- Zone Operations ----
+    const updateZoneCongestion = useCallback((id: string, level: number) => {
+        setZones(prev => prev.map(z => z.id === id ? { ...z, congestionLevel: Math.max(0, Math.min(100, level)) } : z));
+    }, []);
+
+    // ---- Incident Operations ----
+    const addIncident = useCallback((incidentData: Omit<Incident, 'id'>) => {
+        const id = `INC-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`;
+        setIncidents(prev => [...prev, { ...incidentData, id }]);
+        if (settings.incidentAlerts) {
+            addNotification(`New ${incidentData.type} incident: ${incidentData.description}`, 'danger');
+        }
+    }, [settings.incidentAlerts]);
+
+    const removeIncident = useCallback((id: string) => {
+        setIncidents(prev => prev.filter(i => i.id !== id));
+        addNotification(`Incident ${id} resolved`, 'success');
+    }, []);
+
     // ---- Simulation Engine / Polling ----
     useEffect(() => {
+        // Initial sync to load DB data immediately
+        syncData();
+
         // If "Auto Refresh" is on, we poll the server for the latest state
         if (!settings.autoRefresh) return;
 

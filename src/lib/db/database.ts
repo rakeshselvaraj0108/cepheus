@@ -125,10 +125,37 @@ export const db = {
   updateVehicleStatus(id: string, status: string) {
     const db = getDb();
     return db.prepare(`
-      UPDATE vehicles 
+      UPDATE vehicles
       SET status = ?, updated_at = strftime('%s', 'now')
       WHERE id = ?
     `).run(status, id);
+  },
+
+  updateVehicleDestination(id: string, lat: number, lng: number) {
+    const db = getDb();
+    return db.prepare(`
+      UPDATE vehicles
+      SET destination_lat = ?, destination_lng = ?, updated_at = strftime('%s', 'now')
+      WHERE id = ?
+    `).run(lat, lng, id);
+  },
+
+  deleteVehicle(id: string) {
+    const db = getDb();
+    // Also delete relations
+    db.prepare('DELETE FROM vehicles WHERE id = ?').run(id);
+    db.prepare('DELETE FROM routes WHERE vehicle_id = ?').run(id);
+    db.prepare('DELETE FROM ai_decisions WHERE vehicle_id = ?').run(id);
+    return true;
+  },
+
+  updateVehicleRoutes(id: string, currentRoute: string | null, alternativeRoute: string | null) {
+    const db = getDb();
+    return db.prepare(`
+        UPDATE vehicles
+        SET current_route_json = ?, alternative_route_json = ?, updated_at = strftime('%s', 'now')
+        WHERE id = ?
+    `).run(currentRoute, alternativeRoute, id);
   },
   
   // Zones

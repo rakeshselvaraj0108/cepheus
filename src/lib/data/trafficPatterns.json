@@ -1,0 +1,302 @@
+{
+  "Midnight": {
+    "Indiranagar": {
+      "volume": 1285,
+      "congestion": "Medium",
+      "lat": 12.9719,
+      "lng": 77.6412
+    },
+    "Koramangala": {
+      "volume": 1619,
+      "congestion": "High",
+      "lat": 12.9279,
+      "lng": 77.6271
+    },
+    "Electronic City": {
+      "volume": 643,
+      "congestion": "Medium",
+      "lat": 12.8456,
+      "lng": 77.6603
+    },
+    "M.G. Road": {
+      "volume": 1401,
+      "congestion": "High",
+      "lat": 12.975,
+      "lng": 77.606
+    },
+    "Jayanagar": {
+      "volume": 997,
+      "congestion": "Medium",
+      "lat": 12.925,
+      "lng": 77.5838
+    },
+    "Whitefield": {
+      "volume": 846,
+      "congestion": "Medium",
+      "lat": 12.9698,
+      "lng": 77.7499
+    },
+    "Hebbal": {
+      "volume": 1063,
+      "congestion": "Medium",
+      "lat": 13.0358,
+      "lng": 77.597
+    },
+    "Yeshwanthpur": {
+      "volume": 748,
+      "congestion": "Medium",
+      "lat": 13.028,
+      "lng": 77.5385
+    }
+  },
+  "Morning": {
+    "Indiranagar": {
+      "volume": 2570,
+      "congestion": "High",
+      "lat": 12.9719,
+      "lng": 77.6412
+    },
+    "Koramangala": {
+      "volume": 3238,
+      "congestion": "High",
+      "lat": 12.9279,
+      "lng": 77.6271
+    },
+    "Electronic City": {
+      "volume": 1287,
+      "congestion": "Medium",
+      "lat": 12.8456,
+      "lng": 77.6603
+    },
+    "M.G. Road": {
+      "volume": 2803,
+      "congestion": "High",
+      "lat": 12.975,
+      "lng": 77.606
+    },
+    "Jayanagar": {
+      "volume": 1995,
+      "congestion": "High",
+      "lat": 12.925,
+      "lng": 77.5838
+    },
+    "Whitefield": {
+      "volume": 1692,
+      "congestion": "High",
+      "lat": 12.9698,
+      "lng": 77.7499
+    },
+    "Hebbal": {
+      "volume": 2126,
+      "congestion": "High",
+      "lat": 13.0358,
+      "lng": 77.597
+    },
+    "Yeshwanthpur": {
+      "volume": 1497,
+      "congestion": "Medium",
+      "lat": 13.028,
+      "lng": 77.5385
+    }
+  },
+  "Daytime": {
+    "Indiranagar": {
+      "volume": 8352,
+      "congestion": "High",
+      "lat": 12.9719,
+      "lng": 77.6412
+    },
+    "Koramangala": {
+      "volume": 10523,
+      "congestion": "High",
+      "lat": 12.9279,
+      "lng": 77.6271
+    },
+    "Electronic City": {
+      "volume": 4182,
+      "congestion": "High",
+      "lat": 12.8456,
+      "lng": 77.6603
+    },
+    "M.G. Road": {
+      "volume": 9109,
+      "congestion": "High",
+      "lat": 12.975,
+      "lng": 77.606
+    },
+    "Jayanagar": {
+      "volume": 6484,
+      "congestion": "High",
+      "lat": 12.925,
+      "lng": 77.5838
+    },
+    "Whitefield": {
+      "volume": 5500,
+      "congestion": "High",
+      "lat": 12.9698,
+      "lng": 77.7499
+    },
+    "Hebbal": {
+      "volume": 6911,
+      "congestion": "High",
+      "lat": 13.0358,
+      "lng": 77.597
+    },
+    "Yeshwanthpur": {
+      "volume": 4865,
+      "congestion": "High",
+      "lat": 13.028,
+      "lng": 77.5385
+    }
+  },
+  "Noon": {
+    "Indiranagar": {
+      "volume": 6103,
+      "congestion": "High",
+      "lat": 12.9719,
+      "lng": 77.6412
+    },
+    "Koramangala": {
+      "volume": 7690,
+      "congestion": "High",
+      "lat": 12.9279,
+      "lng": 77.6271
+    },
+    "Electronic City": {
+      "volume": 3056,
+      "congestion": "High",
+      "lat": 12.8456,
+      "lng": 77.6603
+    },
+    "M.G. Road": {
+      "volume": 6657,
+      "congestion": "High",
+      "lat": 12.975,
+      "lng": 77.606
+    },
+    "Jayanagar": {
+      "volume": 4738,
+      "congestion": "High",
+      "lat": 12.925,
+      "lng": 77.5838
+    },
+    "Whitefield": {
+      "volume": 4019,
+      "congestion": "High",
+      "lat": 12.9698,
+      "lng": 77.7499
+    },
+    "Hebbal": {
+      "volume": 5050,
+      "congestion": "High",
+      "lat": 13.0358,
+      "lng": 77.597
+    },
+    "Yeshwanthpur": {
+      "volume": 3555,
+      "congestion": "High",
+      "lat": 13.028,
+      "lng": 77.5385
+    }
+  },
+  "Evening": {
+    "Indiranagar": {
+      "volume": 8994,
+      "congestion": "High",
+      "lat": 12.9719,
+      "lng": 77.6412
+    },
+    "Koramangala": {
+      "volume": 11332,
+      "congestion": "High",
+      "lat": 12.9279,
+      "lng": 77.6271
+    },
+    "Electronic City": {
+      "volume": 4503,
+      "congestion": "High",
+      "lat": 12.8456,
+      "lng": 77.6603
+    },
+    "M.G. Road": {
+      "volume": 9810,
+      "congestion": "High",
+      "lat": 12.975,
+      "lng": 77.606
+    },
+    "Jayanagar": {
+      "volume": 6982,
+      "congestion": "High",
+      "lat": 12.925,
+      "lng": 77.5838
+    },
+    "Whitefield": {
+      "volume": 5923,
+      "congestion": "High",
+      "lat": 12.9698,
+      "lng": 77.7499
+    },
+    "Hebbal": {
+      "volume": 7442,
+      "congestion": "High",
+      "lat": 13.0358,
+      "lng": 77.597
+    },
+    "Yeshwanthpur": {
+      "volume": 5240,
+      "congestion": "High",
+      "lat": 13.028,
+      "lng": 77.5385
+    }
+  },
+  "Night": {
+    "Indiranagar": {
+      "volume": 4818,
+      "congestion": "High",
+      "lat": 12.9719,
+      "lng": 77.6412
+    },
+    "Koramangala": {
+      "volume": 6071,
+      "congestion": "High",
+      "lat": 12.9279,
+      "lng": 77.6271
+    },
+    "Electronic City": {
+      "volume": 2412,
+      "congestion": "High",
+      "lat": 12.8456,
+      "lng": 77.6603
+    },
+    "M.G. Road": {
+      "volume": 5255,
+      "congestion": "High",
+      "lat": 12.975,
+      "lng": 77.606
+    },
+    "Jayanagar": {
+      "volume": 3741,
+      "congestion": "High",
+      "lat": 12.925,
+      "lng": 77.5838
+    },
+    "Whitefield": {
+      "volume": 3173,
+      "congestion": "High",
+      "lat": 12.9698,
+      "lng": 77.7499
+    },
+    "Hebbal": {
+      "volume": 3987,
+      "congestion": "High",
+      "lat": 13.0358,
+      "lng": 77.597
+    },
+    "Yeshwanthpur": {
+      "volume": 2807,
+      "congestion": "High",
+      "lat": 13.028,
+      "lng": 77.5385
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useTraffic } from '@/lib/TrafficContext';
-import { Edit2, MapPin, Trash2, Truck, Plus, X, Fuel, Zap, Check, Car, Box } from 'lucide-react';
+import { Edit2, MapPin, Trash2, Truck, Plus, Fuel, Zap, Car, Box } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -23,27 +23,53 @@ const item = {
 };
 
 export function VehicleList() {
-    const { vehicles, addVehicle, removeVehicle, updateVehicleStatus } = useTraffic();
-    const [isAdding, setIsAdding] = useState(false);
+    const { vehicles, addVehicle, removeVehicle, updateVehicleStatus, syncData } = useTraffic();
     const [filter, setFilter] = useState('all');
-    const [newVehicle, setNewVehicle] = useState({
-        name: '',
-        type: 'truck',
-        status: 'active',
-    });
+    const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
 
-    const handleAddSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        addVehicle({
-            name: newVehicle.name || 'New Unit',
-            type: newVehicle.type as any,
-            status: newVehicle.status as any,
-            location: { lat: 12.9716, lng: 77.5946 }, // Default center
-            fuel: 100,
-            efficiency: 100,
-        });
-        setIsAdding(false);
-        setNewVehicle({ name: '', type: 'truck', status: 'active' });
+    const handleRefuel = async (id: string) => {
+        try {
+            const res = await fetch('/api/vehicles', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vehicleId: id, action: 'refuel' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                syncData(); // Refresh data to show new status
+            }
+        } catch (e) {
+            console.error('Refuel failed', e);
+        }
+    };
+
+    const handleToggleStatus = async (id: string, currentStatus: string) => {
+        setLoadingIds(prev => new Set(prev).add(id));
+        try {
+            const action = (currentStatus === 'in-transit' || currentStatus === 'active') ? 'stop' : 'deploy';
+            
+            const res = await fetch('/api/vehicles', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vehicleId: id, action })
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                syncData();
+            } else {
+                console.error('Status toggle failed:', data.error);
+                alert('Action failed: ' + data.error);
+            }
+        } catch (e) {
+            console.error('Network error', e);
+        } finally {
+            setLoadingIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
     };
 
     const getIcon = (type: string) => {
@@ -60,7 +86,7 @@ export function VehicleList() {
         <div className="space-y-6">
             {/* Quick Filters */}
             <div className="flex gap-2 overflow-x-auto pb-2">
-                {['all', 'active', 'idle', 'maintenance', 'truck', 'car'].map(f => (
+                {['all', 'active', 'idle', 'in-transit', 'refueling', 'maintenance', 'truck', 'car'].map(f => (
                     <button
                         key={f}
                         onClick={() => setFilter(f)}
@@ -102,7 +128,11 @@ export function VehicleList() {
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
-                                        <Badge variant={vehicle.status === 'active' ? 'success' : vehicle.status === 'idle' ? 'warning' : 'danger'}>
+                                        <Badge variant={
+                                            vehicle.status === 'active' || vehicle.status === 'in-transit' ? 'success' : 
+                                            vehicle.status === 'idle' ? 'warning' : 
+                                            vehicle.status === 'refueling' ? 'danger' : 'neutral'
+                                        }>
                                             {vehicle.status}
                                         </Badge>
                                         <span className="text-xs font-mono text-[--foreground]/40">#{vehicle.id.split('-')[1]}</span>
@@ -116,15 +146,15 @@ export function VehicleList() {
                                             <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
                                                 <motion.div
                                                     initial={{ width: 0 }}
-                                                    animate={{ width: `${vehicle.fuel}%` }}
+                                                    animate={{ width: `${vehicle.fuel || 100}%` }}
                                                     transition={{ duration: 1, delay: 0.2 }}
-                                                    className={`h-full rounded-full ${vehicle.fuel > 20 ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_10px_currentColor]`}
+                                                    className={`h-full rounded-full ${(vehicle.fuel || 100) > 20 ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_10px_currentColor]`}
                                                 />
                                             </div>
                                         </div>
                                         <div>
                                             <span className="text-[--foreground]/40 block text-xs uppercase mb-1 flex items-center gap-1"><Zap className="w-3 h-3" /> Efficiency</span>
-                                            <div className="text-lg font-bold font-mono">{Math.round(vehicle.efficiency)}%</div>
+                                            <div className="text-lg font-bold font-mono">{Math.round(vehicle.efficiency || 100)}%</div>
                                         </div>
                                     </div>
 
@@ -135,14 +165,26 @@ export function VehicleList() {
                                 </div>
 
                                 <div className="p-4 pt-0 flex items-center justify-between gap-2 mt-auto relative z-10">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => updateVehicleStatus(vehicle.id, vehicle.status === 'active' ? 'idle' : 'active')}
-                                        className="flex-1 text-xs h-8 border-white/10 hover:bg-white/5 hover:text-white transition-all"
-                                    >
-                                        {vehicle.status === 'active' ? 'Stop' : 'Deploy'}
-                                    </Button>
+                                    {(vehicle.status === 'refueling' || (vehicle.fuel || 0) < 20) ? (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleRefuel(vehicle.id)}
+                                            className="flex-1 text-xs h-8 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-all animate-pulse"
+                                        >
+                                            <Fuel className="mr-2 h-3 w-3" /> Refuel Now
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleToggleStatus(vehicle.id, vehicle.status)}
+                                            disabled={loadingIds.has(vehicle.id)}
+                                            className={`flex-1 text-xs h-8 border-white/10 hover:bg-white/5 hover:text-white transition-all ${loadingIds.has(vehicle.id) ? 'opacity-50 cursor-wait' : ''}`}
+                                        >
+                                            {loadingIds.has(vehicle.id) ? '...' : (vehicle.status === 'active' || vehicle.status === 'in-transit' ? 'Stop' : 'Deploy')}
+                                        </Button>
+                                    )}
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-[--foreground]/40 hover:text-white hover:bg-white/10">
                                         <Edit2 className="h-4 w-4" />
                                     </Button>
@@ -160,96 +202,22 @@ export function VehicleList() {
                     ))}
                 </AnimatePresence>
 
-                {/* Add New Card with Flip Animation */}
-                <div className="relative h-[280px] perspective-1000">
+                {/* Add New Card - Link to Create Page */}
+                <a href="/dashboard/vehicles/create" className="block">
                     <motion.div
-                        className="w-full h-full relative preserve-3d transition-all duration-700"
-                        animate={{ rotateY: isAdding ? 180 : 0 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                        style={{ transformStyle: 'preserve-3d' }}
+                        whileHover={{ scale: 1.02, y: -8 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="h-[280px] w-full rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-4 group bg-[--color-surface-100]/50 hover:bg-[--color-surface-100] transition-colors cursor-pointer"
                     >
-                        {/* Front: Add Button */}
-                        <div
-                            className="absolute inset-0 backface-hidden"
-                            style={{ backfaceVisibility: 'hidden' }}
-                        >
-                            <motion.button
-                                onClick={() => setIsAdding(true)}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="w-full h-full rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-4 group bg-[--color-surface-100]/50 hover:bg-[--color-surface-100] transition-colors"
-                            >
-                                <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[--color-primary] group-hover:text-white transition-all duration-300 shadow-2xl">
-                                    <Plus className="h-8 w-8 text-[--foreground]/40 group-hover:text-white" />
-                                </div>
-                                <div className="text-center">
-                                    <h3 className="font-bold text-lg text-[--foreground]/60 group-hover:text-white transition-colors">Add Vehicle</h3>
-                                    <p className="text-sm text-[--foreground]/40">Deploy new unit</p>
-                                </div>
-                            </motion.button>
+                        <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[--color-primary] group-hover:text-white transition-all duration-300 shadow-2xl">
+                            <Plus className="h-8 w-8 text-[--foreground]/40 group-hover:text-white" />
                         </div>
-
-                        {/* Back: Form */}
-                        <div
-                            className="absolute inset-0 backface-hidden rotate-y-180"
-                            style={{
-                                backfaceVisibility: 'hidden',
-                                transform: 'rotateY(180deg)'
-                            }}
-                        >
-                            <Card className="w-full h-full bg-[--color-surface-200] border-[--color-primary]/50 shadow-[0_0_30px_rgba(255,69,0,0.1)] flex flex-col">
-                                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[--color-primary]/10">
-                                    <h3 className="font-bold text-lg text-white">New Deployment</h3>
-                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsAdding(false); }} className="h-6 w-6 hover:bg-white/10 rounded-full">
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <form onSubmit={handleAddSubmit} className="p-4 flex-1 flex flex-col gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-xs uppercase text-[--foreground]/40">Vehicle Name</label>
-                                        <input
-                                            type="text"
-                                            value={newVehicle.name}
-                                            onChange={(e) => setNewVehicle({ ...newVehicle, name: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[--color-primary] focus:ring-1 focus:ring-[--color-primary] transition-all"
-                                            placeholder="e.g. Omega Transport"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs uppercase text-[--foreground]/40">Type</label>
-                                        <select
-                                            value={newVehicle.type}
-                                            onChange={(e) => setNewVehicle({ ...newVehicle, type: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[--color-primary]"
-                                        >
-                                            <option value="truck">Heavy Truck</option>
-                                            <option value="van">Delivery Van</option>
-                                            <option value="car">Rapid Response</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs uppercase text-[--foreground]/40">Status</label>
-                                        <select
-                                            value={newVehicle.status}
-                                            onChange={(e) => setNewVehicle({ ...newVehicle, status: e.target.value })}
-                                            className="w-full bg-black/20 border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[--color-primary]"
-                                        >
-                                            <option value="active">Active</option>
-                                            <option value="idle">Idle</option>
-                                            <option value="maintenance">Maintenance</option>
-                                        </select>
-                                    </div>
-                                    <div className="mt-auto">
-                                        <Button type="submit" variant="primary" className="w-full gap-2 shadow-[0_0_15px_var(--color-primary)] hover:shadow-[0_0_25px_var(--color-primary)] transition-shadow">
-                                            <Check className="h-4 w-4" /> Deploy Unit
-                                        </Button>
-                                    </div>
-                                </form>
-                            </Card>
+                        <div className="text-center">
+                            <h3 className="font-bold text-lg text-[--foreground]/60 group-hover:text-white transition-colors">Create Vehicle</h3>
+                            <p className="text-sm text-[--foreground]/40">Add with source & destination</p>
                         </div>
                     </motion.div>
-                </div>
+                </a>
             </motion.div>
         </div>
     );

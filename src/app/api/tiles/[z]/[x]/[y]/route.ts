@@ -1,52 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTileDb } from '@/lib/db';
+import { getTilesDb } from '@/lib/db/tilesDb';
 
 export async function GET(
-    request: NextRequest,
-    context: { params: Promise<{ z: string; x: string; y: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ z: string; x: string; y: string }> }
 ) {
-    const { z: zStr, x: xStr, y: yStr } = await context.params;
-
-    const z = parseInt(zStr);
-    const x = parseInt(xStr);
-    const y = parseInt(yStr);
-
-    if (isNaN(z) || isNaN(x) || isNaN(y)) {
-        console.log(`❌ Invalid tile request: z=${zStr}, x=${xStr}, y=${yStr}`);
-        return new NextResponse('Invalid parameters', { status: 400 });
-    }
-
-    // MBTiles uses TMS coordinate system - Y axis is inverted
-    const tmsY = (1 << z) - 1 - y;
+  try {
+    const { z, x, y } = await params;
     
-    console.log(`🗺️ Tile request: ${z}/${x}/${y} (TMS: ${z}/${x}/${tmsY})`);
+    // Parse parameters
+    const zNum = parseInt(z);
+    const xNum = parseInt(x);
+    // Remove file extension if present (e.g. .pbf or .png)
+    const yNum = parseInt(y.split('.')[0]);
 
-    try {
-        const database = getTileDb();
-        const statement = database.prepare(
-            'SELECT tile_data FROM tiles WHERE zoom_level = ? AND tile_column = ? AND tile_row = ?'
-        );
-        const result = statement.get(z, x, tmsY) as { tile_data: Buffer } | undefined;
-
-        if (!result || !result.tile_data) {
-            console.log(`⚠️  Tile not found: ${z}/${x}/${y}`);
-            return new NextResponse(null, { status: 404 });
-        }
-
-        console.log(`✅ Serving tile: ${z}/${x}/${y} (${result.tile_data.length} bytes)`);
-
-        const headers = new Headers();
-        headers.set('Content-Type', 'application/x-protobuf');
-        headers.set('Content-Encoding', 'gzip');
-        headers.set('Cache-Control', 'public, max-age=31536000');
-        headers.set('Access-Control-Allow-Origin', '*');
-
-        return new NextResponse(result.tile_data as any, {
-            status: 200,
-            headers: headers,
-        });
-    } catch (error) {
-        console.error('Error serving tile:', error);
-        return new NextResponse('Internal Server Error', { status: 500 });
+    if (isNaN(zNum) || isNaN(xNum) || isNaN(yNum)) {
+      return new NextResponse('Invalid coordinates', { status: 400 });
     }
+
+    // MBTiles uses TMS (flipped Y)
+    // Formula: y_tms = (2^z) - 1 - y_xyz
+    const yTms = (1 << zNum) - 1 - yNum;
+
+    const db = getTilesDb();
+    
+    // Query tile data
+    const row = db.prepare('SELECT tile_data FROM tiles WHERE zoom_level = ? AND tile_column = ? AND tile_row = ?')
+                  .get(zNum, xNum, yTms) as { tile_data: Buffer } | undefined;
+
+    if (!row || !row.tile_data) {
+      return new NextResponse('Tile not found', { status: 404 });
+    }
+
+    // Return the tile
+    // GZIP detected in analysis -> Content-Encoding: gzip is REQUIRED
+    return new NextResponse(row.tile_data, {
+      headers: {
+        'Content-Type': 'application/vnd.mapbox-vector-tile',
+        'Content-Encoding': 'gzip',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*'
+      },
+    });
+
+  } catch (error) {
+    console.error('Tile error:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }

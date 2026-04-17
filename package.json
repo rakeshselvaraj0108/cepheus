@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:setup": "tsx scripts/migrate.ts",
-    "test:system": "tsx tests/test-system.ts"
+    "test:system": "tsx tests/test-system.ts",
+    "test:traffic": "tsx tests/test-free-traffic.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -19,15 +20,13 @@
     "@turf/turf": "^7.3.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/geojson": "^7946.0.16",
-    "@types/leaflet": "^1.9.21",
     "@types/three": "^0.182.0",
     "axios": "^1.13.5",
     "better-sqlite3": "^12.6.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.0",
-    "leaflet": "^1.9.4",
     "lucide-react": "^0.563.0",
-    "maplibre-gl": "^5.17.0",
+    "maplibre-gl": "^5.18.0",
     "next": "16.1.6",
     "ogl": "^1.0.11",
     "openai": "^6.19.0",

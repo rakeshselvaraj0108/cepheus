@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
         cargo: vehicle.cargo || null,
         routeId: vehicle.routeId
       },
+      destination: vehicle.dest_lat && vehicle.dest_lng ? {
+        lat: vehicle.dest_lat,
+        lng: vehicle.dest_lng
+      } : undefined,
       nearbyZones: zones || [],
       environment: environment || {
         weather: 'clear',
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
         action: decision.action,
         type: actionToType[decision.action] || 'route_choice',
         reasoning: decision.reasoning || 'No reasoning provided',
-        modelName: 'qwen/qwen2.5-72b-instruct',
+        modelName: 'liquid/lfm-2.5-1.2b-thinking:free',
         confidence: decision.confidence || 0.8,
         status: 'executed',
         context: JSON.stringify(context)
