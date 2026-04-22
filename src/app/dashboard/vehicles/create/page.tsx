@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface SearchResult {
@@ -10,46 +10,122 @@ interface SearchResult {
   lon: string;
 }
 
+// 40+ Bangalore locations for instant autocomplete
+const BANGALORE_LOCATIONS: SearchResult[] = [
+  { place_id: 10001, display_name: "KJU (Kristu Jayanti College), K Narayanapura", lat: "13.0584", lon: "77.6433" },
+  { place_id: 10002, display_name: "Atria Institute of Technology, Anandnagar", lat: "13.0334", lon: "77.5901" },
+  { place_id: 10003, display_name: "Koramangala, Bangalore", lat: "12.9352", lon: "77.6245" },
+  { place_id: 10004, display_name: "Silk Board Junction, Bangalore", lat: "12.9176", lon: "77.6238" },
+  { place_id: 10005, display_name: "Shanti Nagar, Bangalore", lat: "12.9569", lon: "77.5959" },
+  { place_id: 10006, display_name: "Indiranagar, Bangalore", lat: "12.9784", lon: "77.6408" },
+  { place_id: 10007, display_name: "Whitefield, Bangalore", lat: "12.9698", lon: "77.7500" },
+  { place_id: 10008, display_name: "Electronic City Phase 1, Bangalore", lat: "12.8452", lon: "77.6602" },
+  { place_id: 10009, display_name: "Majestic (Kempegowda Bus Station), Bangalore", lat: "12.9767", lon: "77.5713" },
+  { place_id: 10010, display_name: "MG Road, Bangalore", lat: "12.9753", lon: "77.6066" },
+  { place_id: 10011, display_name: "Brigade Road, Bangalore", lat: "12.9716", lon: "77.6070" },
+  { place_id: 10012, display_name: "Jayanagar, Bangalore", lat: "12.9250", lon: "77.5938" },
+  { place_id: 10013, display_name: "JP Nagar, Bangalore", lat: "12.9063", lon: "77.5857" },
+  { place_id: 10014, display_name: "BTM Layout, Bangalore", lat: "12.9166", lon: "77.6101" },
+  { place_id: 10015, display_name: "HSR Layout, Bangalore", lat: "12.9116", lon: "77.6389" },
+  { place_id: 10016, display_name: "Marathahalli, Bangalore", lat: "12.9591", lon: "77.7009" },
+  { place_id: 10017, display_name: "Hebbal, Bangalore", lat: "13.0358", lon: "77.5970" },
+  { place_id: 10018, display_name: "Yelahanka, Bangalore", lat: "13.1007", lon: "77.5963" },
+  { place_id: 10019, display_name: "Kempegowda International Airport, Bangalore", lat: "13.1989", lon: "77.7068" },
+  { place_id: 10020, display_name: "Rajajinagar, Bangalore", lat: "12.9900", lon: "77.5525" },
+  { place_id: 10021, display_name: "Malleshwaram, Bangalore", lat: "13.0035", lon: "77.5645" },
+  { place_id: 10022, display_name: "Basavanagudi, Bangalore", lat: "12.9424", lon: "77.5750" },
+  { place_id: 10023, display_name: "Sadashivanagar, Bangalore", lat: "13.0070", lon: "77.5780" },
+  { place_id: 10024, display_name: "Banashankari, Bangalore", lat: "12.9255", lon: "77.5468" },
+  { place_id: 10025, display_name: "Vijayanagar, Bangalore", lat: "12.9710", lon: "77.5330" },
+  { place_id: 10026, display_name: "Peenya Industrial Area, Bangalore", lat: "13.0300", lon: "77.5190" },
+  { place_id: 10027, display_name: "Yeshwanthpur, Bangalore", lat: "13.0280", lon: "77.5450" },
+  { place_id: 10028, display_name: "Bannerghatta Road, Bangalore", lat: "12.8870", lon: "77.5970" },
+  { place_id: 10029, display_name: "Sarjapur Road, Bangalore", lat: "12.9100", lon: "77.6870" },
+  { place_id: 10030, display_name: "Bellandur, Bangalore", lat: "12.9260", lon: "77.6760" },
+  { place_id: 10031, display_name: "Varthur, Bangalore", lat: "12.9370", lon: "77.7440" },
+  { place_id: 10032, display_name: "KR Puram, Bangalore", lat: "13.0073", lon: "77.6960" },
+  { place_id: 10033, display_name: "Domlur, Bangalore", lat: "12.9610", lon: "77.6387" },
+  { place_id: 10034, display_name: "HAL Airport, Bangalore", lat: "12.9500", lon: "77.6680" },
+  { place_id: 10035, display_name: "Ulsoor, Bangalore", lat: "12.9830", lon: "77.6200" },
+  { place_id: 10036, display_name: "Richmond Town, Bangalore", lat: "12.9600", lon: "77.6000" },
+  { place_id: 10037, display_name: "Cubbon Park, Bangalore", lat: "12.9763", lon: "77.5929" },
+  { place_id: 10038, display_name: "Lalbagh Botanical Garden, Bangalore", lat: "12.9507", lon: "77.5848" },
+  { place_id: 10039, display_name: "Wilson Garden, Bangalore", lat: "12.9440", lon: "77.5990" },
+  { place_id: 10040, display_name: "Bommanahalli, Bangalore", lat: "12.9010", lon: "77.6230" },
+  { place_id: 10041, display_name: "Nagarbhavi, Bangalore", lat: "12.9610", lon: "77.5100" },
+  { place_id: 10042, display_name: "RT Nagar, Bangalore", lat: "13.0210", lon: "77.5970" },
+  { place_id: 10043, display_name: "Kammanahalli, Bangalore", lat: "13.0130", lon: "77.6420" },
+  { place_id: 10044, display_name: "Kalyan Nagar, Bangalore", lat: "13.0250", lon: "77.6400" },
+  { place_id: 10045, display_name: "HRBR Layout, Bangalore", lat: "13.0180", lon: "77.6350" },
+];
+
 function LocationSearch({ label, value, onSelect }: { label: string, value: string, onSelect: (lat: number, lng: number, name: string) => void }) {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Debounce search to respect Nominatim rate limits (1 req/sec)
+  // Close dropdown when clicking outside
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (query.length < 3) {
-        setResults([]);
-        return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
       }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
+  // INSTANT local filtering + delayed Nominatim for extra results
+  useEffect(() => {
+    if (query.length < 1) {
+      setResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const q = query.toLowerCase();
+
+    // INSTANT: Filter from hardcoded locations (no network call!)
+    const localMatches = BANGALORE_LOCATIONS.filter(loc =>
+      loc.display_name.toLowerCase().includes(q)
+    );
+    setResults(localMatches.slice(0, 6));
+    setShowDropdown(true);
+
+    // DELAYED: Also fetch from Nominatim for extra results (non-blocking)
+    const timer = setTimeout(async () => {
+      if (query.length < 2) return;
       setIsSearching(true);
       try {
         const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
-        
-        if (!res.ok) throw new Error('Network response was not ok');
-        
-        const data = await res.json();
-        setResults(data);
+        if (res.ok) {
+          const data = await res.json();
+          // Merge: local first, then remote, deduplicate by place_id
+          const existingIds = new Set(localMatches.map(l => l.place_id));
+          const remoteNew = (data || []).filter((d: SearchResult) => !existingIds.has(d.place_id));
+          setResults([...localMatches, ...remoteNew].slice(0, 8));
+        }
       } catch (e) {
-        console.warn('Search failed:', e);
-        // Fallback or silent fail
+        // Ignore - we already have local results
       } finally {
         setIsSearching(false);
       }
-    }, 800); // 800ms debounce
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query]);
 
   return (
-    <div className="relative mb-4">
+    <div className="relative mb-4" ref={containerRef}>
       <label className="block text-sm font-medium mb-1 text-gray-300">{label}</label>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search Bangalore location..."
+        onFocus={() => { if (results.length > 0) setShowDropdown(true); }}
+        placeholder="Type any Bangalore location... (e.g. K, Silk, MG)"
         className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400"
       />
       {/* Loading Indicator */}
@@ -59,13 +135,14 @@ function LocationSearch({ label, value, onSelect }: { label: string, value: stri
         </div>
       )}
       {/* Results Dropdown */}
-      {results.length > 0 && query.length >= 3 && !isSearching && (
+      {showDropdown && results.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
             {results.map((item) => (
             <li 
                 key={item.place_id}
                 onClick={() => {
-                setQuery(item.display_name.split(',')[0]); // Use short name for input
+                setQuery(item.display_name.split(',')[0]);
+                setShowDropdown(false);
                 setResults([]);
                 onSelect(parseFloat(item.lat), parseFloat(item.lon), item.display_name);
                 }}
@@ -80,6 +157,7 @@ function LocationSearch({ label, value, onSelect }: { label: string, value: stri
     </div>
   );
 }
+
 
 export default function CreateVehiclePage() {
   const router = useRouter();

@@ -89,7 +89,7 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
         alertThreshold: 80,
         darkMode: true,
         autoRefresh: true,
-        refreshInterval: 0.3, // 300ms sync to match v19 engine
+        refreshInterval: 5, // 5 seconds - balanced between responsiveness and performance
         mapStyle: 'dark',
     });
 
