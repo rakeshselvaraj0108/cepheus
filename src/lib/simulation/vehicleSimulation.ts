@@ -435,36 +435,15 @@ class VehicleSimulationEngine {
             }
         }
 
-        // --- NORMAL SHUTTLE A <-> B Logic (NO REFUELING) ---
+        // --- ARRIVAL LOGIC ---
         
-        // We do NOT reset to idle! We want it to patrol continuously so it consumes fuel
-        db.updateVehicleStatus(vehicle.id, 'in-transit');
-
-        // Check if we're at original destination (point B) - if yes, return to start (point A)
-        const distToDest = this.getDistance(vehicle.location_lat, vehicle.location_lng, 
-                                            routeData.originalDest.lat, routeData.originalDest.lng);
-        const distToStart = this.getDistance(vehicle.location_lat, vehicle.location_lng, 
-                                             routeData.originalStart.lat, routeData.originalStart.lng);
+        // Change status to idle so the user gets notified and the vehicle stops moving
+        db.updateVehicleStatus(vehicle.id, 'idle');
+        db.updateVehicleLocation(vehicle.id, vehicle.location_lat, vehicle.location_lng, 0, 0);
         
-        // 0.01 degrees ≈ 1km
-        if (distToDest < 0.01) {
-            // We just arrived at B, now go back to A
-            console.log(`↩️ [${vehicle.name}] Job Done. Returning to base A...`);
-            nextDestLat = routeData.originalStart.lat;
-            nextDestLng = routeData.originalStart.lng;
-        } else if (distToStart < 0.01) {
-            // We just arrived back at A, now go to B again
-            console.log(`🔄 [${vehicle.name}] Back at base A. Starting new trip to B...`);
-            nextDestLat = routeData.originalDest.lat;
-            nextDestLng = routeData.originalDest.lng;
-        } else {
-            // Unknown location - go back to start
-            console.log(`⚠️ [${vehicle.name}] Unknown position. Returning to base...`);
-            nextDestLat = routeData.originalStart.lat;
-            nextDestLng = routeData.originalStart.lng;
-        }
-
-        db.updateVehicleDestination(vehicle.id, nextDestLat, nextDestLng);
+        console.log(`🏁 [${vehicle.name}] Destination reached. Switching to IDLE.`);
+        
+        // Clear the route data so it can be recalculated next time it's deployed
         this.vehicleRoutes.delete(vehicle.id);
         return;
       }
