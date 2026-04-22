@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, LayoutDashboard, Truck, Map as MapIcon, Settings, LogOut } from 'lucide-react';
+import { Activity, LayoutDashboard, Truck, Map as MapIcon, Settings, LogOut, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { StressTestSimulator } from '@/components/dashboard/StressTestSimulator';
@@ -54,6 +54,29 @@ export function Sidebar() {
                 <div className="pt-2">
                     <StressTestSimulator />
                 </div>
+                {/* Analytics Link */}
+                <Link href="/dashboard/analytics">
+                    <div
+                        className={cn(
+                            'flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-all relative group mt-2',
+                            pathname === '/dashboard/analytics'
+                                ? 'text-white bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        )}
+                    >
+                        {pathname === '/dashboard/analytics' && (
+                            <motion.div
+                                layoutId="sidebar-active"
+                                className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg border border-cyan-500/20"
+                                initial={false}
+                                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                            />
+                        )}
+                        <BarChart3 className={cn("h-4 w-4 relative z-10", pathname === '/dashboard/analytics' ? "text-cyan-400" : "group-hover:text-white")} />
+                        <span className="relative z-10">Analytics</span>
+                        <span className="ml-auto relative z-10 text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-bold">NEW</span>
+                    </div>
+                </Link>
             </nav>
 
             <div className="p-4 border-t border-white/10 flex flex-col gap-3">
