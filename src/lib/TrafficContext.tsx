@@ -28,9 +28,8 @@ interface TrafficContextType {
     zones: TrafficZone[];
     updateZoneCongestion: (id: string, level: number) => void;
 
-    // Incidents & Alerts
+    // Incidents
     incidents: Incident[];
-    cascadeAlerts: any[];
     addIncident: (incident: Omit<Incident, 'id'>) => void;
     removeIncident: (id: string) => void;
 
@@ -79,7 +78,6 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [zones, setZones] = useState<TrafficZone[]>([]);
     const [incidents, setIncidents] = useState<Incident[]>([]);
-    const [cascadeAlerts, setCascadeAlerts] = useState<any[]>([]);
     const [isSimulating, setIsSimulating] = useState(true);
     const [lastSyncTime, setLastSyncTime] = useState(new Date());
     const [stressTestResult, setStressTestResult] = useState<any | null>(null);
@@ -140,15 +138,9 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
     // ---- Sync ----
     const syncData = useCallback(async () => {
         try {
-            const [simRes, cascadeRes] = await Promise.all([
-                fetch('/api/simulation'),
-                fetch('/api/cascade-alerts')
-            ]);
-            
-            if (!simRes.ok) throw new Error('Failed to fetch state');
-            
-            const data = await simRes.json();
-            const cascadeData = cascadeRes.ok ? await cascadeRes.json() : { alerts: [] };
+            const res = await fetch('/api/simulation');
+            if (!res.ok) throw new Error('Failed to fetch state');
+            const data = await res.json();
             
             // Only update if we have meaningful data
             if (data.vehicles) {
@@ -166,7 +158,6 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
             }
             if (data.zones) setZones(data.zones);
             if (data.incidents) setIncidents(data.incidents);
-            if (cascadeData.alerts) setCascadeAlerts(cascadeData.alerts);
             
             setLastSyncTime(new Date(data.lastUpdated));
             // addNotification('Data synchronized with backend', 'info'); 
@@ -280,7 +271,7 @@ export function TrafficProvider({ children }: { children: ReactNode }) {
         <TrafficContext.Provider value={{
             vehicles, addVehicle, removeVehicle, updateVehicleStatus, updateVehicleFuel,
             zones, updateZoneCongestion,
-            incidents, cascadeAlerts, addIncident, removeIncident,
+            incidents, addIncident, removeIncident,
             stats,
             settings, updateSettings,
             isSimulating, toggleSimulation, lastSyncTime, syncData,

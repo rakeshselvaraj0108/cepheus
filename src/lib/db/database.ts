@@ -234,32 +234,6 @@ export const db = {
     `).all();
   },
   
-  getCascadeAlerts() {
-    const db = getDb();
-    return db.prepare(`SELECT * FROM cascade_alerts ORDER BY risk_score DESC`).all();
-  },
-  
-  createCascadeAlert(alert: any) {
-    const db = getDb();
-    // Use INSERT OR REPLACE in case the id already exists, or just clear them beforehand
-    return db.prepare(`
-        INSERT INTO cascade_alerts (id, zone_id, zone_name, risk_score, source_incident_id, predicted_impact_time)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-        alert.id,
-        alert.zoneId,
-        alert.zoneName,
-        alert.riskScore,
-        alert.sourceIncidentId,
-        alert.predictedImpactTime
-    );
-  },
-
-  clearCascadeAlerts() {
-    const db = getDb();
-    return db.prepare(`DELETE FROM cascade_alerts`).run();
-  },
-  
   createIncident(incident: any) {
     const db = getDb();
     return db.prepare(`

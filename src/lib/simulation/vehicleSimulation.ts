@@ -97,7 +97,7 @@ class VehicleSimulationEngine {
          { name: "Hoskote Cargo Terminal", lat: 13.0722, lng: 77.7896 }
       ];
 
-      for (const vehicle of vehicles as any[]) {
+      for (const vehicle of vehicles) {
           // Implement physical snapping for non-transit states
           if (vehicle.status === 'maintenance') {
               // Snap to nearest Warehouse
@@ -127,7 +127,7 @@ class VehicleSimulationEngine {
 
       console.log(`🔄 Simulating ${transitVehicles.length} vehicles...`);
 
-      for (const vehicle of transitVehicles as any[]) {
+      for (const vehicle of transitVehicles) {
         await this.updateVehicle(vehicle);
       }
       
@@ -533,9 +533,6 @@ class VehicleSimulationEngine {
       // So prob = 1/20 = 0.05
       if (Math.random() < 0.05 || (speedFactor < 0.3 && Math.random() < 0.2)) {
          try {
-             // Also fetch cascade alerts for context
-             const cascadeAlerts = (db as any).getCascadeAlerts ? (db as any).getCascadeAlerts() : [];
-
              const decision = await agent.makeDecision({
                  vehicle: vehicle,
                  environment: {
@@ -545,8 +542,7 @@ class VehicleSimulationEngine {
                      rushHour: false
                  },
                  nearbyZones: [], // TODO: optimize fetch
-                 nearbyIncidents: incidents,
-                 cascadeAlerts: cascadeAlerts
+                 nearbyIncidents: incidents
              });
              
              // Apply decision (simple overrides)
@@ -561,7 +557,7 @@ class VehicleSimulationEngine {
              } else if (decision && decision.action === 'refuel' && vehicle.status !== 'refueling' && !vehicle.alternative_route_json) {
                  // AI decided to refuel autonomously
                  console.log(`🤖 AI Agent autonomous REFUEL triggered for ${vehicle.name}`);
-                 const nearestStation = db.getNearestFuelStation(vehicle.location_lat, vehicle.location_lng);
+                 const nearestStation = db.getNearestFuelStation(currentLat, currentLng);
                  if (nearestStation) {
                      const resumeState = { type: 'resume', dest: { lat: vehicle.destination_lat, lng: vehicle.destination_lng } };
                      // Save resume state

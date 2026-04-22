@@ -25,14 +25,7 @@ function LocationSearch({ label, value, onSelect }: { label: string, value: stri
 
       setIsSearching(true);
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=77.3,13.3,77.9,12.7&bounded=1&limit=5&addressdetails=1`,
-          {
-            headers: {
-              'Accept-Language': 'en-US,en;q=0.9',
-            }
-          }
-        );
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
         
         if (!res.ok) throw new Error('Network response was not ok');
         

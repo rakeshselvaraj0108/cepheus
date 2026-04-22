@@ -14,7 +14,6 @@ export interface DecisionContext {
   currentRoute?: OptimizedRoute;
   nearbyZones: TrafficZone[];
   nearbyIncidents: TrafficIncident[];
-  cascadeAlerts?: any[];
   environment: {
     weather: string;
     temperature?: number;
@@ -108,7 +107,7 @@ export class VehicleAgent {
    * Build prompt that makes AI imagine being in the situation
    */
   private buildSituationImaginationPrompt(context: DecisionContext): string {
-    const { vehicle, nearbyZones, nearbyIncidents, cascadeAlerts, environment, currentRoute } = context;
+    const { vehicle, nearbyZones, nearbyIncidents, environment, currentRoute } = context;
 
     // Personality traits
     const personalityTraits = {
@@ -157,12 +156,6 @@ ${i + 1}. ${inc.type.toUpperCase()} [${inc.severity}] - ${inc.description}
    Delay: ${inc.delayMinutes || 0} minutes
 `).join('') : '✅ No incidents reported'}
 
-🚨 PREDICTED CASCADE EARLY WARNINGS:
-${cascadeAlerts && cascadeAlerts.length > 0 ? cascadeAlerts.map(alert => `
-- Zone: ${alert.zoneName} (Risk: ${alert.riskScore}%)
-- Impact Expected In: ~${alert.predictedImpactTime} mins
-`).join('') : '✅ No predicted traffic cascades'}
-
 ⛽ NEAREST FUEL STATIONS:
 ${context.fuelStations && context.fuelStations.length > 0 ? context.fuelStations.slice(0, 2).map(fs => `
 - ${fs.name}: ${fs.distance.toFixed(1)}km away, ₹${fs.price || 105}/L
@@ -182,7 +175,6 @@ The fuel gauge shows ${Math.round(vehicle.fuel)}%. The weather is ${environment.
 
 ${vehicle.fuel < 20 ? '⚠️ Your fuel warning light is BLINKING. You feel anxious about running out of fuel.' : ''}
 ${nearbyIncidents.length > 0 ? `⚠️ You hear on the radio: "${nearbyIncidents[0].description}". This worries you.` : ''}
-${cascadeAlerts && cascadeAlerts.length > 0 ? `⚠️ Your GPS shows a RED EARLY WARNING for ${cascadeAlerts[0].zoneName}. Traffic is expected to cascade there in ${cascadeAlerts[0].predictedImpactTime} mins.` : ''}
 ${environment.rushHour ? '🚨 The roads are PACKED with vehicles. Everyone is honking. You are stuck in bumper-to-bumper traffic.' : ''}
 ${environment.weather !== 'clear' ? `🌧️ Your windshield wipers are on. Visibility is reduced. You must drive more carefully.` : ''}
 

@@ -34,7 +34,6 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
     const [liveZones, setLiveZones] = useState<any[]>([]);
     const [liveFuelStations, setLiveFuelStations] = useState<any[]>([]);
     const [liveTrafficData, setLiveTrafficData] = useState<any>(null);
-    const [liveCascadeAlerts, setLiveCascadeAlerts] = useState<any[]>([]);
 
     // Context-switched state
     const vehicles = stressTestResult?.vehicles || liveVehicles;
@@ -42,13 +41,11 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
     const zones = stressTestResult?.zones || liveZones;
     const fuelStations = stressTestResult ? [] : liveFuelStations;
     const trafficData = stressTestResult?.trafficData || liveTrafficData;
-    const cascadeAlerts = stressTestResult ? [] : liveCascadeAlerts;
 
     const animationFrameRef = useRef<number>(0);
     const vehiclePositions = useRef<Map<string, { lat: number; lng: number }>>(new Map());
     const fuelMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
     const warehouseMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
-    const cascadeMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
 
     const START_LNG = 77.5946;
     const START_LAT = 12.9716;
@@ -60,10 +57,9 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
 
         const fetchData = async () => {
             try {
-                const [vehRes, trafRes, cascadeRes] = await Promise.all([
+                const [vehRes, trafRes] = await Promise.all([
                     fetch('/api/vehicles'),
-                    fetch('/api/traffic'),
-                    fetch('/api/cascade-alerts')
+                    fetch('/api/traffic')
                 ]);
                 
                 const vehData = await vehRes.json();
@@ -77,13 +73,6 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
                     setLiveZones(trafData.zones || []);
                     setLiveFuelStations(trafData.fuelStations || []);
                     setLiveTrafficData(trafData);
-                }
-                
-                if (cascadeRes.ok) {
-                    const cascadeData = await cascadeRes.json();
-                    if (cascadeData.success) {
-                        setLiveCascadeAlerts(cascadeData.alerts || []);
-                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -606,7 +595,7 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
         if(!map.getSource('vehicle-routes')) return;
 
         const routeFeatures: any[] = [];
-        vehicles.forEach((vehicle: any) => {
+        vehicles.forEach(vehicle => {
              if (vehicleFilter !== 'all' && vehicle.type !== vehicleFilter) return;
              // Draw route for all moving vehicles
              if (vehicle.status !== 'in-transit' || !vehicle.currentRoute) return;
@@ -647,7 +636,7 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
         const currentIncidents = incidentMarkersRef.current;
         const validIds = new Set<string>();
 
-        incidents.forEach((incident: any) => {
+        incidents.forEach(incident => {
             if (isNaN(incident.lng) || isNaN(incident.lat)) return;
             validIds.add(incident.id);
             
@@ -680,70 +669,6 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
             }
         });
     }, [incidents, showIncidents, isMapReady]);
-
-    // 8. Cascade Alerts (Orange Pulsing Halos)
-    useEffect(() => {
-        const map = mapInstance.current;
-        const lib = mapLibRef.current;
-        if (!map || !lib || !isMapReady) return;
-
-        const currentCascadeIds = new Set(cascadeAlerts.map((a: any) => a.id));
-        
-        // Remove stale cascades
-        for (const [id, marker] of cascadeMarkersRef.current.entries()) {
-            if (!currentCascadeIds.has(id)) {
-                marker.remove();
-                cascadeMarkersRef.current.delete(id);
-            }
-        }
-
-        // Add new cascades
-        cascadeAlerts.forEach((alert: any) => {
-            if (!cascadeMarkersRef.current.has(alert.id)) {
-                // Find the zone coordinates
-                const zone = zones.find((z: any) => z.id === alert.zoneId || z.zone_id === alert.zoneId);
-                if (!zone) return;
-                
-                const lat = zone.center_lat || zone.centerLat || zone.center_lng; // Handle bad schema naming temporarily
-                const lng = zone.center_lng || zone.centerLng || zone.center_lat;
-                
-                if (!lat || !lng) return;
-
-                const el = document.createElement('div');
-                el.className = 'cascade-halo';
-                
-                // 3 circles for a ripple effect
-                el.innerHTML = `
-                    <div class="absolute inset-0 rounded-full bg-orange-500/30 animate-ping" style="animation-duration: 2s"></div>
-                    <div class="absolute inset-0 rounded-full bg-orange-500/20 animate-ping" style="animation-duration: 3s; animation-delay: 0.5s"></div>
-                    <div class="w-4 h-4 bg-orange-500 rounded-full border-2 border-white shadow-[0_0_15px_rgba(249,115,22,0.8)]"></div>
-                `;
-                el.style.position = 'relative';
-                el.style.display = 'flex';
-                el.style.alignItems = 'center';
-                el.style.justifyContent = 'center';
-                el.style.width = '100px';
-                el.style.height = '100px';
-
-                const popup = new lib.Popup({ offset: 25 })
-                    .setHTML(`
-                        <div style="color: #000; padding: 4px;">
-                            <h3 style="font-weight: bold; color: #f97316; margin-bottom: 4px;">PREDICTED CASCADE</h3>
-                            <p><strong>Zone:</strong> ${alert.zoneName}</p>
-                            <p><strong>Risk Score:</strong> ${alert.riskScore}%</p>
-                            <p style="color: #666; font-size: 0.9em; margin-top: 4px;">Impact expected in ~${alert.predictedImpactTime} mins</p>
-                        </div>
-                    `);
-
-                const marker = new lib.Marker({ element: el })
-                    .setLngLat([lng, lat])
-                    .setPopup(popup)
-                    .addTo(map);
-                    
-                cascadeMarkersRef.current.set(alert.id, marker);
-            }
-        });
-    }, [cascadeAlerts, zones, isMapReady]);
 
     return (
         <Card className="col-span-1 lg:col-span-2 relative h-full w-full overflow-hidden bg-[#0c1018] border-white/10 p-0! shadow-2xl group">
@@ -783,77 +708,9 @@ export function RealTrafficMap({ vehicleFilter = 'all', showIncidents = true }: 
                 <div className="text-xs text-white/80 font-mono pl-8 drop-shadow-md flex items-center gap-2">
                     LIVE FEED | LAT: {START_LAT} N
                     <Activity className={`h-3 w-3 ${vehicles.length > 0 ? 'text-green-400 animate-pulse' : 'text-gray-400'}`} />
-                    {vehicles.filter((v: any) => v.status === 'in-transit').length} ACTIVE
+                    {vehicles.filter(v => v.status === 'in-transit').length} ACTIVE
                 </div>
             </div>
-
-            {/* Cascade Warning Panel */}
-            {cascadeAlerts.length > 0 && (
-                <div className="absolute top-20 right-4 z-20 w-80 bg-black/80 backdrop-blur-md border border-orange-500/50 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(249,115,22,0.15)] pointer-events-auto">
-                    <div className="bg-gradient-to-r from-orange-500/20 to-transparent p-3 border-b border-orange-500/20 flex items-center gap-2">
-                        <AlertTriangle className="text-orange-500 h-5 w-5 animate-pulse" />
-                        <h4 className="text-orange-500 font-bold text-sm tracking-widest">CASCADE EARLY WARNING</h4>
-                    </div>
-                    <div className="p-3 max-h-60 overflow-y-auto space-y-3">
-                        {cascadeAlerts.slice(0, 3).map((alert: any) => {
-                            const sourceInc = incidents.find((i: any) => i.id === alert.sourceIncidentId);
-                            return (
-                                <div key={alert.id} className="text-xs relative pl-3 border-l-2 border-orange-500/50">
-                                    <div className="text-white font-medium mb-1 flex justify-between">
-                                        <span>Spread to {alert.zoneName}</span>
-                                        <span className="text-orange-400">Risk: {alert.riskScore}%</span>
-                                    </div>
-                                    <div className="text-gray-400">
-                                        Origin: {sourceInc ? sourceInc.type : 'Incident'}
-                                    </div>
-                                    <div className="text-orange-500/80 mt-1 font-mono">
-                                        ~{alert.predictedImpactTime} MINS UNTIL IMPACT
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {cascadeAlerts.length > 3 && (
-                            <div className="text-xs text-center text-gray-500 pt-2">
-                                +{cascadeAlerts.length - 3} more zones at risk
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Cascade Warning Panel */}
-            {cascadeAlerts.length > 0 && (
-                <div className="absolute top-20 right-4 z-20 w-80 bg-black/80 backdrop-blur-md border border-orange-500/50 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(249,115,22,0.15)] pointer-events-auto">
-                    <div className="bg-gradient-to-r from-orange-500/20 to-transparent p-3 border-b border-orange-500/20 flex items-center gap-2">
-                        <AlertTriangle className="text-orange-500 h-5 w-5 animate-pulse" />
-                        <h4 className="text-orange-500 font-bold text-sm tracking-widest">CASCADE EARLY WARNING</h4>
-                    </div>
-                    <div className="p-3 max-h-60 overflow-y-auto space-y-3">
-                        {cascadeAlerts.slice(0, 3).map((alert: any) => {
-                            const sourceInc = incidents.find((i: any) => i.id === alert.sourceIncidentId);
-                            return (
-                                <div key={alert.id} className="text-xs relative pl-3 border-l-2 border-orange-500/50">
-                                    <div className="text-white font-medium mb-1 flex justify-between">
-                                        <span>Spread to {alert.zoneName}</span>
-                                        <span className="text-orange-400">Risk: {alert.riskScore}%</span>
-                                    </div>
-                                    <div className="text-gray-400">
-                                        Origin: {sourceInc ? sourceInc.type : 'Incident'}
-                                    </div>
-                                    <div className="text-orange-500/80 mt-1 font-mono">
-                                        ~{alert.predictedImpactTime} MINS UNTIL IMPACT
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {cascadeAlerts.length > 3 && (
-                            <div className="text-xs text-center text-gray-500 pt-2">
-                                +{cascadeAlerts.length - 3} more zones at risk
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {trafficData && (
                 <div className="absolute bottom-6 left-4 z-10 pointer-events-none flex flex-col gap-2">
