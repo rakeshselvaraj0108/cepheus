@@ -408,6 +408,8 @@ export class TrafficDataPoller {
       const incidents = await fetchTrafficIncidents(weatherCondition);
       const zoneData = await updateZoneTrafficData(zones, weatherCondition);
       
+      await calculateCascadeRisk(incidents, zones, zoneData);
+      
       console.log(`✅ Traffic updated: ${incidents.length} active incidents, avg congestion: ${Math.round(zoneData.reduce((sum, z) => sum + z.congestionLevel, 0) / zoneData.length)}%`);
       
       callback({ incidents, zoneData });
@@ -415,6 +417,66 @@ export class TrafficDataPoller {
       console.error('❌ Traffic poll failed:', error);
     }
   }
+}
+
+export async function calculateCascadeRisk(incidents: TrafficIncident[], zones: any[], zoneData: ZoneTrafficData[]) {
+    try {
+        db.clearCascadeAlerts();
+    } catch (e) {
+        // Table might not exist yet if DB wasn't recreated
+        console.error('Failed to clear cascade alerts (table might not exist yet)', e);
+        return;
+    }
+    
+    const currentHour = new Date().getHours();
+    const isRushHour = (currentHour >= 7 && currentHour <= 10) || (currentHour >= 17 && currentHour <= 20);
+    const timeOfDayFactor = isRushHour ? 1.5 : 1.0;
+
+    const highCriticalIncidents = incidents.filter(i => i.severity === 'high' || i.severity === 'critical');
+
+    for (const incident of highCriticalIncidents) {
+        for (const zone of zones) {
+            // Find distance in "hops" by calculating km distance (roughly 2km = 1 hop)
+            const zoneCenter = {
+                lat: zone.center_lat || zone.centerLat || zone.center_lng,
+                lng: zone.center_lng || zone.centerLng || zone.center_lat
+            };
+            if (!zoneCenter.lat || !zoneCenter.lng) continue;
+            
+            const distanceKm = turf.distance(
+                turf.point([zoneCenter.lng, zoneCenter.lat]),
+                turf.point([incident.location.lng, incident.location.lat]),
+                { units: 'kilometers' }
+            );
+            
+            const distanceFromIncidentHops = Math.max(1, Math.ceil(distanceKm / 2));
+            
+            // Limit to 3 hops (approx 6km)
+            if (distanceFromIncidentHops <= 3) {
+                const zId = zone.id || zone.zone_id || zone.zoneId;
+                const zData = zoneData.find(z => z.zoneId === zId);
+                const congestion = zData ? zData.congestionLevel : 20;
+                const trafficCongestionMultiplier = congestion / 100;
+                
+                const cascadeRiskScore = (100 - distanceFromIncidentHops * 10) 
+                                         * trafficCongestionMultiplier 
+                                         * timeOfDayFactor;
+                
+                if (cascadeRiskScore > 50) {
+                    const alert = {
+                        id: `CASC-${incident.id}-${zId}`,
+                        zoneId: zId,
+                        zoneName: zone.name || zone.zone_name || 'Unknown Zone',
+                        riskScore: Math.round(cascadeRiskScore),
+                        sourceIncidentId: incident.id,
+                        predictedImpactTime: distanceFromIncidentHops * 10 // 1 hop = 10 mins
+                    };
+                    db.createCascadeAlert(alert);
+                    console.log(`⚠️ CASCADE ALERT: Incident at ${incident.location.lat.toFixed(2)},${incident.location.lng.toFixed(2)} spreading to ${alert.zoneName} (Risk: ${alert.riskScore}%)`);
+                }
+            }
+        }
+    }
 }
 
 /**

@@ -211,6 +211,17 @@ CREATE TABLE IF NOT EXISTS fuel_stations (
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
+-- Cascade alerts table
+CREATE TABLE IF NOT EXISTS cascade_alerts (
+    id TEXT PRIMARY KEY,
+    zone_id TEXT NOT NULL,
+    zone_name TEXT NOT NULL,
+    risk_score REAL NOT NULL,
+    source_incident_id TEXT NOT NULL,
+    predicted_impact_time INTEGER NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_vehicles_location ON vehicles(location_lat, location_lng);
 CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);

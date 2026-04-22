@@ -533,6 +533,9 @@ class VehicleSimulationEngine {
       // So prob = 1/20 = 0.05
       if (Math.random() < 0.05 || (speedFactor < 0.3 && Math.random() < 0.2)) {
          try {
+             // Also fetch cascade alerts for context
+             const cascadeAlerts = (db as any).getCascadeAlerts ? (db as any).getCascadeAlerts() : [];
+
              const decision = await agent.makeDecision({
                  vehicle: vehicle,
                  environment: {
@@ -542,7 +545,8 @@ class VehicleSimulationEngine {
                      rushHour: false
                  },
                  nearbyZones: [], // TODO: optimize fetch
-                 nearbyIncidents: incidents
+                 nearbyIncidents: incidents,
+                 cascadeAlerts: cascadeAlerts
              });
              
              // Apply decision (simple overrides)

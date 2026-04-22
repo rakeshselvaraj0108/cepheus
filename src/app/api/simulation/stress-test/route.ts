@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const originalVehicles = (db as any).getAllVehicles ? (db as any).getAllVehicles() : (db as any).getVehicles() || [];
     const originalZones = (db as any).getZones() || [];
     const originalIncidents = (db as any).getIncidents ? (db as any).getIncidents() : (db as any).getActiveIncidents() || [];
+    const originalCascadeAlerts = (db as any).getCascadeAlerts ? (db as any).getCascadeAlerts() : [];
     const originalFuelStations = (db as any).getFuelStations ? (db as any).getFuelStations() : [];
 
     // Deep copy state for simulation and map structure for frontend
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
           destination: v.destination ? { lat: v.destination.lat, lng: v.destination.lng } : undefined,
           nearbyZones: zones,
           nearbyIncidents: incidents,
+          cascadeAlerts: originalCascadeAlerts,
           environment: {
             weather: environment.condition,
             congestion: environment.globalCongestionLevel,
